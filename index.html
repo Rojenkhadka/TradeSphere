@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TradeSphere - Stock Trading Simulation</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+</head>
+<body>
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Start Screen -->
+  <div id="startScreen" class="screen active">
+    <div class="glow-background"></div>
+    <div class="ticker-tape"></div>
+    <div class="screen-content">
+      <div class="logo">
+        <h1>TradeSphere</h1>
+        <p class="tagline">Master the market in 90 seconds</p>
+      </div>
+      
+      <div class="session-info-panel">
+        <div class="info-row">
+          <span class="info-label">Starting Capital</span>
+          <span class="info-value">$1,000</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Target</span>
+          <span class="info-value">$10,000</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Session Length</span>
+          <span class="info-value">90 sec</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Markets</span>
+          <span class="info-value">4 Stocks</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Mode</span>
+          <span class="info-value">Live Events</span>
+        </div>
+      </div>
+
+     
+
+      <button id="startBtn" class="btn-primary">Enter the Market</button>
+    </div>
+  </div>
+
+  <!-- Game Screen -->
+  <div id="gameScreen" class="screen">
+    <!-- HUD -->
+    <div class="hud-sticky">
+      <div class="hud-container">
+        <div class="hud-chip">
+          <span class="hud-label">Cash</span>
+          <span class="hud-value" id="hudCash">$1,000.00</span>
+        </div>
+        <div class="hud-chip">
+          <span class="hud-label">Portfolio</span>
+          <span class="hud-value" id="hudPortfolio">$0.00</span>
+        </div>
+        <div class="hud-chip">
+          <span class="hud-label">Net Worth</span>
+          <span class="hud-value accent" id="hudNetWorth">$1,000.00</span>
+        </div>
+        <div class="hud-chip">
+          <span class="hud-label">Level</span>
+          <span class="hud-value" id="hudLevel">1</span>
+        </div>
+        <div class="hud-xp-bar">
+          <div class="xp-bar-fill" id="xpBarFill"></div>
+          <span class="xp-text" id="xpText">0/100</span>
+        </div>
+        <div class="hud-timer">
+          <span id="hudTimer">90</span>s
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-container">
+      <div class="chart-tabs">
+        <button class="chart-tab active" data-stock="APEX">APEX</button>
+        <button class="chart-tab" data-stock="GVLT">GVLT</button>
+        <button class="chart-tab" data-stock="NXBK">NXBK</button>
+        <button class="chart-tab" data-stock="VOLX">VOLX</button>
+      </div>
+      <canvas id="priceChart"></canvas>
+    </div>
+
+    <!-- Main Game Layout -->
+    <div class="game-layout">
+      <!-- Trade Cards Grid -->
+      <div class="trade-cards-grid">
+        <div class="trade-card" data-stock="APEX" style="--card-color: #00D4FF;">
+          <div class="card-header">
+            <div class="stock-icon">A</div>
+            <div class="stock-info">
+              <div class="stock-name">ApexTech</div>
+              <div class="stock-ticker">APEX</div>
+            </div>
+          </div>
+          <div class="card-price">
+            <span id="price-APEX" class="price-large">$120.00</span>
+            <span id="change-APEX" class="price-change">+0.00%</span>
+          </div>
+          <div class="card-holdings">
+            <span id="shares-APEX">0 shares</span>
+            <span id="value-APEX" class="holdings-value">$0.00</span>
+          </div>
+          <div class="card-actions">
+            <button class="btn-buy" data-stock="APEX">BUY</button>
+            <button class="btn-sell" data-stock="APEX">SELL</button>
+          </div>
+        </div>
+
+        <div class="trade-card" data-stock="GVLT" style="--card-color: #2ECC71;">
+          <div class="card-header">
+            <div class="stock-icon">G</div>
+            <div class="stock-info">
+              <div class="stock-name">GreenVolt</div>
+              <div class="stock-ticker">GVLT</div>
+            </div>
+          </div>
+          <div class="card-price">
+            <span id="price-GVLT" class="price-large">$85.00</span>
+            <span id="change-GVLT" class="price-change">+0.00%</span>
+          </div>
+          <div class="card-holdings">
+            <span id="shares-GVLT">0 shares</span>
+            <span id="value-GVLT" class="holdings-value">$0.00</span>
+          </div>
+          <div class="card-actions">
+            <button class="btn-buy" data-stock="GVLT">BUY</button>
+            <button class="btn-sell" data-stock="GVLT">SELL</button>
+          </div>
+        </div>
+
+        <div class="trade-card" data-stock="NXBK" style="--card-color: #FF6B9D;">
+          <div class="card-header">
+            <div class="stock-icon">N</div>
+            <div class="stock-info">
+              <div class="stock-name">NexBank</div>
+              <div class="stock-ticker">NXBK</div>
+            </div>
+          </div>
+          <div class="card-price">
+            <span id="price-NXBK" class="price-large">$200.00</span>
+            <span id="change-NXBK" class="price-change">+0.00%</span>
+          </div>
+          <div class="card-holdings">
+            <span id="shares-NXBK">0 shares</span>
+            <span id="value-NXBK" class="holdings-value">$0.00</span>
+          </div>
+          <div class="card-actions">
+            <button class="btn-buy" data-stock="NXBK">BUY</button>
+            <button class="btn-sell" data-stock="NXBK">SELL</button>
+          </div>
+        </div>
+
+        <div class="trade-card" data-stock="VOLX" style="--card-color: #FFB547;">
+          <div class="card-header">
+            <div class="stock-icon">V</div>
+            <div class="stock-info">
+              <div class="stock-name">VolatileX</div>
+              <div class="stock-ticker">VOLX</div>
+            </div>
+          </div>
+          <div class="card-price">
+            <span id="price-VOLX" class="price-large">$50.00</span>
+            <span id="change-VOLX" class="price-change">+0.00%</span>
+          </div>
+          <div class="card-holdings">
+            <span id="shares-VOLX">0 shares</span>
+            <span id="value-VOLX" class="holdings-value">$0.00</span>
+          </div>
+          <div class="card-actions">
+            <button class="btn-buy" data-stock="VOLX">BUY</button>
+            <button class="btn-sell" data-stock="VOLX">SELL</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Panels -->
+      <div class="bottom-panels">
+        <!-- Market Events -->
+        <div class="events-panel">
+          <div class="panel-header">
+            <h3>Market Events</h3>
+          </div>
+          <div class="events-list" id="eventsList">
+            <div class="empty-state">Waiting for events...</div>
+          </div>
+        </div>
+
+        <!-- Missions -->
+        <div class="missions-panel">
+          <div class="panel-header">
+            <h3>Missions</h3>
+          </div>
+          <div class="missions-list" id="missionsList">
+            <div class="mission-item" data-mission="0">
+              <div class="mission-check"></div>
+              <span class="mission-text">Make your first trade</span>
+              <span class="mission-xp">+20 XP</span>
+            </div>
+            <div class="mission-item" data-mission="1">
+              <div class="mission-check"></div>
+              <span class="mission-text">Own 5+ shares total</span>
+              <span class="mission-xp">+30 XP</span>
+            </div>
+            <div class="mission-item" data-mission="2">
+              <div class="mission-check"></div>
+              <span class="mission-text">Reach $1,500 net worth</span>
+              <span class="mission-xp">+50 XP</span>
+            </div>
+            <div class="mission-item" data-mission="3">
+              <div class="mission-check"></div>
+              <span class="mission-text">Trade all 4 stocks</span>
+              <span class="mission-xp">+40 XP</span>
+            </div>
+            <div class="mission-item" data-mission="4">
+              <div class="mission-check"></div>
+              <span class="mission-text">Reach $3,000 net worth</span>
+              <span class="mission-xp">+80 XP</span>
+            </div>
+            <div class="mission-item" data-mission="5">
+              <div class="mission-check"></div>
+              <span class="mission-text">Survive 60 seconds</span>
+              <span class="mission-xp">+60 XP</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div id="gameOverScreen" class="screen">
+    <div class="glow-background"></div>
+    <div class="ticker-tape"></div>
+    <div class="screen-content">
+      <div class="result-card">
+        <div class="result-icon" id="resultIcon">💸</div>
+        <h2 id="resultTitle">WIPED OUT</h2>
+        <p id="resultMessage">You didn't manage to grow your capital.</p>
+
+        <div class="result-stats">
+          <div class="stat-cell">
+            <span class="stat-label">Net Worth</span>
+            <span class="stat-value" id="statNetWorth">$1,000.00</span>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-label">Profit/Loss</span>
+            <span class="stat-value" id="statProfitLoss">$0.00</span>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-label">Level</span>
+            <span class="stat-value" id="statLevel">1</span>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-label">XP Earned</span>
+            <span class="stat-value" id="statXP">0</span>
+          </div>
+        </div>
+
+        <button id="newSessionBtn" class="btn-primary">New Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Level Up Overlay -->
+  <div id="levelUpOverlay" class="overlay hidden">
+    <div class="level-up-card">
+      <div class="level-up-ring" id="levelUpRing">
+        <span id="levelUpNumber">2</span>
+      </div>
+      <h2>LEVEL UP!</h2>
+      <button id="continueBtn" class="btn-secondary">Continue Trading</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
