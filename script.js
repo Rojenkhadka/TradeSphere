@@ -1,3 +1,123 @@
+// ===== PLAYER & LEADERBOARD =====
+
+let playerName = localStorage.getItem("playerName") || "Guest";
+
+let leaderboard = JSON.parse(localStorage.getItem("leaderboard")) || [];
+
+function applyProfile(p) {
+  G.cash = p.cash;
+  G.level = p.level;
+  G.xp = p.xp;
+  G.owned = p.owned;
+  G.trades = p.trades;
+}
+
+function saveLeaderboard() {
+    localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
+}
+
+
+
+function addScore() {
+
+    const score = {
+        name: playerName,
+        worth: Number(G.netWorth().toFixed(2)), // lock value
+        level: G.level,
+        xp: G.xp,
+        date: new Date().toLocaleDateString()
+    };
+
+    // 🔒 Prevent duplicate immediate entries
+    const last = leaderboard[leaderboard.length - 1];
+    if (
+        last &&
+        last.name === score.name &&
+        last.worth === score.worth &&
+        last.level === score.level &&
+        last.date === score.date
+    ) {
+        return;
+    }
+
+    leaderboard.push(score);
+
+    leaderboard.sort((a, b) => {
+
+        // 1st priority: net worth
+        if (b.worth !== a.worth) return b.worth - a.worth;
+
+        // 2nd priority: level
+        if (b.level !== a.level) return b.level - a.level;
+
+        // 3rd priority: XP (important missing piece)
+        if (b.xp !== a.xp) return b.xp - a.xp;
+
+        // 4th priority: name (stable ordering)
+        return a.name.localeCompare(b.name);
+    });
+
+    leaderboard = leaderboard.slice(0, 10);
+
+    saveLeaderboard();
+    renderLeaderboard();
+}
+function renderLeaderboard() {
+
+    const body = document.getElementById("leaderboardBody");
+
+    if (!body) return;
+    if(leaderboard.length===0){
+
+      body.innerHTML=
+
+      `
+      <tr>
+
+      <td colspan="5">
+
+      No scores yet.
+
+      </td>
+
+      </tr>
+      `;
+
+return;
+
+}
+
+    leaderboard.forEach((item, index) => {
+
+        const highlight =
+            item.name===playerName
+            ?
+
+            'style="background:#143c36;font-weight:bold;"':"";
+
+body.innerHTML+=`
+
+<tr ${highlight}>
+            <td>
+
+            ${
+            index==0 ? "🥇" :
+            index==1 ? "🥈" :
+            index==2 ? "🥉" :
+            "#"+(index+1)
+          }
+
+</td>
+            <td>${item.name}</td>
+            <td>$${item.worth.toFixed(2)}</td>
+            <td>${item.level}</td>
+            <td>${item.date}</td>
+        </tr>
+        `;
+
+    });
+
+}
 // ===== Game State Object =====
 let G = {
   cash: 1000,
@@ -5,6 +125,7 @@ let G = {
   prices: { APEX: 120, GVLT: 85, NXBK: 200, VOLX: 50 },
   prevPrices: { APEX: 120, GVLT: 85, NXBK: 200, VOLX: 50 },
   hist: { APEX: [120], GVLT: [85], NXBK: [200], VOLX: [50] },
+  portfolioHistory: [],
   level: 1,
   xp: 0,
   elapsed: 0,
@@ -89,6 +210,7 @@ function initGame() {
     prices: { APEX: 120, GVLT: 85, NXBK: 200, VOLX: 50 },
     prevPrices: { APEX: 120, GVLT: 85, NXBK: 200, VOLX: 50 },
     hist: { APEX: [120], GVLT: [85], NXBK: [200], VOLX: [50] },
+    portfolioHistory: [],
     level: 1,
     xp: 0,
     elapsed: 0,
@@ -121,36 +243,118 @@ function initGame() {
   };
 }
 
+// ================= PROFILE SAVE SYSTEM =================
+
+function getSaveKey(name) {
+  return "player_" + name;
+}
+
+// CREATE OR LOAD PROFILE
+function loadOrCreateProfile(name) {
+  const saved = localStorage.getItem(getSaveKey(name));
+
+  if (saved) {
+    const data = JSON.parse(saved);
+
+    return {
+      ...data,
+      tradedSet: new Set(data.tradedSet || []),
+      dailyLogin:{
+  lastDate: null,
+  streak: 0
+}
+    };
+    
+    
+  }
+  
+  return {
+    name,
+    cash: 1000,
+    level: 1,
+    xp: 0,
+    owned: { APEX: 0, GVLT: 0, NXBK: 0, VOLX: 0 },
+    trades: 0,
+    tradedSet: new Set(),
+    dailyLogin: {
+    lastDate: null,
+    streak: 0
+  }
+  };
+}
+
+// SAVE PROFILE
+function saveProfile() {
+  const data = {
+    name: playerName,
+    cash: G.cash,
+    level: G.level,
+    xp: G.xp,
+    owned: G.owned,
+    trades: G.trades,
+    tradedSet: Array.from(G.tradedSet),
+  };
+
+  localStorage.setItem(getSaveKey(playerName), JSON.stringify(data));
+  
+}
+
 // ===== Start Game =====
-function startGame() {
-  initGame();
+function startGame(profile) {
+  hidePlayerModal();
+
+  initGame(); // resets base game
+
+  // 🔥 APPLY PROFILE IMMEDIATELY AFTER RESET
+  if (profile) {
+    G.cash = profile.cash ?? 1000;
+    G.level = profile.level ?? 1;
+    G.xp = profile.xp ?? 0;
+    G.owned = profile.owned ?? { APEX: 0, GVLT: 0, NXBK: 0, VOLX: 0 };
+    G.trades = profile.trades ?? 0;
+    G.tradedSet = new Set(profile.tradedSet || []);
+    checkDailyLoginReward(profile);
+  }
+
+  gameEnded = false;
+
   showScreen("game");
+
   buildChart();
-  updateHUD();
+  updateHUD();        // 🔥 IMPORTANT: after applying profile
   updateAllCards();
   updateMissionsUI();
-  
-  // Start timers
+
+  document.getElementById("hudPlayerName").textContent = playerName;
+
   gameTimer = setInterval(() => {
-    G.elapsed += 1;
+
+    G.elapsed++;
+
+    G.portfolioHistory.push({
+        time: G.elapsed,
+        worth: G.netWorth()
+    });
+
     updateHUD();
-    if (G.elapsed >= G.limit) {
-      endGame();
-    }
-  }, 1000);
-  
+
+    if (G.elapsed >= G.limit)
+        endGame();
+
+},1000);
+
   priceTimer = setInterval(() => {
     updatePrices();
     updateChart();
     updateAllCards();
     checkMissions();
   }, 800);
-  
+
   eventTimer = setInterval(() => {
-    if (Math.random() < 0.42) {
-      fireEvent();
-    }
+    if (Math.random() < 0.42) fireEvent();
   }, 7500);
+
+  setInterval(saveProfile, 5000);
 }
 
 // ===== Update Prices =====
@@ -349,7 +553,62 @@ function buildChart() {
     }
   });
 }
+let portfolioChart;
 
+function buildPortfolioChart() {
+
+    const ctx =
+    document.getElementById("portfolioChart");
+
+    if (!ctx) return;
+
+    if (portfolioChart)
+        portfolioChart.destroy();
+
+    portfolioChart = new Chart(ctx, {
+
+        type: "line",
+
+        data: {
+
+            labels: G.portfolioHistory.map(x => x.time),
+
+            datasets: [{
+
+                label: "Net Worth",
+
+                data: G.portfolioHistory.map(x => x.worth),
+
+                borderColor: "#00D4FF",
+
+                backgroundColor: "rgba(0,212,255,0.15)",
+
+                fill: true,
+
+                tension: 0.3,
+
+                pointRadius: 0
+
+            }]
+        },
+
+        options: {
+
+            responsive: true,
+
+            plugins: {
+
+                legend: {
+                    display:false
+                }
+
+            }
+
+        }
+
+    });
+
+}
 // ===== Update Chart =====
 function updateChart() {
   const currentTab = document.querySelector(".chart-tab.active");
@@ -406,6 +665,8 @@ function updateMissionsUI() {
 
 // ===== End Game =====
 function endGame() {
+  if (gameEnded) return;   
+  gameEnded = true;
   clearInterval(gameTimer);
   clearInterval(priceTimer);
   clearInterval(eventTimer);
@@ -424,14 +685,50 @@ function endGame() {
   document.getElementById("statProfitLoss").textContent = (profitLoss >= 0 ? "+" : "") + "$" + profitLoss.toFixed(2);
   document.getElementById("statLevel").textContent = G.level;
   document.getElementById("statXP").textContent = G.xp;
-  
-  showScreen("gameOver");
+  document.getElementById("resultPlayerName").textContent =
+  "Trader : " + playerName;
+
+addScore();
+
+let rank = leaderboard.findIndex(x =>
+  x.name === playerName && x.worth === G.netWorth()
+);
+
+rank = rank === -1 ? leaderboard.length : rank + 1;
+
+document.getElementById("highScoreMessage").textContent=
+
+`🏆 Rank #${rank} on Leaderboard`;
+
+const best = leaderboard[0];
+
+if (best &&
+    best.name === playerName &&
+    best.worth === G.netWorth()) {
+
+    document.getElementById("highScoreMessage").textContent =
+        "🏆 NEW HIGH SCORE!";
 }
+else{
+
+    document.getElementById("highScoreMessage").textContent =
+        "Great Trading!";
+}
+buildPortfolioChart();
+showScreen("gameOver");
+saveProfile();
+}
+
 
 // ===== Show Screen =====
 function showScreen(name) {
-  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-  document.getElementById(name + "Screen").classList.add("active");
+  document.querySelectorAll(".screen").forEach(s => {
+    s.classList.remove("active");
+  });
+
+  const screen = document.getElementById(name + "Screen");
+
+  if (screen) screen.classList.add("active");
 }
 
 // ===== Show Level Up =====
@@ -454,15 +751,68 @@ function toast(msg, cls = "green") {
   }, 2400);
 }
 
+function hidePlayerModal() {
+    const modal = document.getElementById("playerModal");
+    if (!modal) return;
+
+    modal.classList.add("hidden");
+    modal.style.display = "none";
+}
+
 // ===== Event Listeners =====
 document.addEventListener("DOMContentLoaded", () => {
-  // Start button
-  document.getElementById("startBtn").addEventListener("click", startGame);
+
+  document.getElementById("startBtn").addEventListener("click", () => {
+
+    const input = document.getElementById("playerName");
+    playerName = input.value.trim();
+
+    console.log("Entered name:", playerName); // debug
+
+    if (!playerName) playerName = "Guest";
+
+    localStorage.setItem("playerName", playerName);
+
+   const profile = loadOrCreateProfile(playerName);
+  startGame(profile);
+
+    // document.getElementById("hudPlayerName").textContent = playerName;
+
+
+    // hidePlayerModal();
+
+    // startGame();
+  });
+
+
+
+// Leaderboard Button
+const leaderboardBtn =
+document.getElementById("leaderboardBtn").addEventListener("click", () => {
+    renderLeaderboard();
+    showScreen("leaderboard");
+});
+
+});
+
+const closeLeaderboard =
+document.getElementById("closeLeaderboard").addEventListener("click", () => {
+  
+  document.getElementById("leaderboardScreen").classList.remove("active");
+
+  // IMPORTANT: return to game screen
+  document.getElementById("gameScreen").classList.add("active");
+});
+
   
   // New session button
-  document.getElementById("newSessionBtn").addEventListener("click", () => {
-    showScreen("start");
-  });
+ document.getElementById("newSessionBtn").addEventListener("click", () => {
+
+  const profile = loadOrCreateProfile(playerName);
+
+  startGame(profile); // 🔥 reuse saved progress
+
+});
   
   // Continue button (Level Up)
   document.getElementById("continueBtn").addEventListener("click", () => {
@@ -493,7 +843,7 @@ document.addEventListener("DOMContentLoaded", () => {
       trade(ticker, "SELL");
     });
   });
-});
+;
 
 // ===== Add dynamic XP bar fill width =====
 function updateXPBarWidth() {
@@ -515,3 +865,35 @@ function updateXPBarWidth() {
     fillDiv.setAttribute("style", style + "; --fill-width: " + xpPercent + "%;");
   }
 }
+
+function checkDailyLoginReward(profile) {
+  const today = new Date().toDateString();
+
+  // already claimed today
+  if (profile.dailyLogin.lastDate === today) {
+    return;
+  }
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const ydayStr = yesterday.toDateString();
+
+  // streak logic
+  if (profile.dailyLogin.lastDate === ydayStr) {
+    profile.dailyLogin.streak += 1;
+  } else {
+    profile.dailyLogin.streak = 1;
+  }
+
+  profile.dailyLogin.lastDate = today;
+
+  // 🎁 reward system
+  const rewardXP = 20 * profile.dailyLogin.streak;
+  const rewardCash = 100 * profile.dailyLogin.streak;
+
+  profile.xp += rewardXP;
+  profile.cash += rewardCash;
+
+  toast(`Daily Login! +${rewardXP} XP, +$${rewardCash}`, "green");
+}
+

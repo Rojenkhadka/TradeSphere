@@ -11,6 +11,30 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
 </head>
 <body>
+  <div id="playerModal" class="player-modal">
+
+    <div class="player-card">
+
+        <h1>TradeSphere</h1>
+
+        <p>Enter your trader name</p>
+
+        <input
+            type="text"
+            id="playerName"
+            placeholder="Enter your name"
+            maxlength="15">
+
+        <button
+            id="startBtn" class="btn-primary">
+
+            Enter Market
+
+        </button>
+
+    </div>
+
+</div>
   <!-- Toast Container -->
   <div id="toastContainer" class="toast-container"></div>
 
@@ -47,9 +71,11 @@
         </div>
       </div>
 
-     
+      <div class="start-buttons">
 
-      <button id="startBtn" class="btn-primary">Enter the Market</button>
+    
+
+</div>
     </div>
   </div>
 
@@ -74,6 +100,10 @@
           <span class="hud-label">Level</span>
           <span class="hud-value" id="hudLevel">1</span>
         </div>
+        <button
+        id="leaderboardBtn" class="btn-secondary">
+            Leaderboard
+</button>
         <div class="hud-xp-bar">
           <div class="xp-bar-fill" id="xpBarFill"></div>
           <span class="xp-text" id="xpText">0/100</span>
@@ -81,6 +111,10 @@
         <div class="hud-timer">
           <span id="hudTimer">90</span>s
         </div>
+        <div class="hud-chip">
+  <span class="hud-label">Player</span>
+  <span class="hud-value" id="hudPlayerName">Guest</span>
+</div>
       </div>
     </div>
 
@@ -243,39 +277,112 @@
   </div>
 
   <!-- Game Over Screen -->
-  <div id="gameOverScreen" class="screen">
+<div id="gameOverScreen" class="screen">
     <div class="glow-background"></div>
     <div class="ticker-tape"></div>
-    <div class="screen-content">
-      <div class="result-card">
-        <div class="result-icon" id="resultIcon">💸</div>
-        <h2 id="resultTitle">WIPED OUT</h2>
-        <p id="resultMessage">You didn't manage to grow your capital.</p>
 
-        <div class="result-stats">
-          <div class="stat-cell">
-            <span class="stat-label">Net Worth</span>
-            <span class="stat-value" id="statNetWorth">$1,000.00</span>
-          </div>
-          <div class="stat-cell">
-            <span class="stat-label">Profit/Loss</span>
-            <span class="stat-value" id="statProfitLoss">$0.00</span>
-          </div>
-          <div class="stat-cell">
-            <span class="stat-label">Level</span>
-            <span class="stat-value" id="statLevel">1</span>
-          </div>
-          <div class="stat-cell">
-            <span class="stat-label">XP Earned</span>
-            <span class="stat-value" id="statXP">0</span>
-          </div>
+    <div class="screen-content">
+
+        <div class="result-card">
+
+            <h3 id="resultPlayerName" class="player-result-name"></h3>
+
+            <div class="result-icon" id="resultIcon">💸</div>
+
+            <h2 id="resultTitle">WIPED OUT</h2>
+
+            <p id="resultMessage">You didn't manage to grow your capital.</p>
+
+            <div class="result-stats">
+
+                <div class="stat-cell">
+                    <span class="stat-label">Net Worth</span>
+                    <span class="stat-value" id="statNetWorth">$1,000.00</span>
+                </div>
+
+                <div class="stat-cell">
+                    <span class="stat-label">Profit/Loss</span>
+                    <span class="stat-value" id="statProfitLoss">$0.00</span>
+                </div>
+
+                <div class="stat-cell">
+                    <span class="stat-label">Level</span>
+                    <span class="stat-value" id="statLevel">1</span>
+                </div>
+
+                <div class="stat-cell">
+                    <span class="stat-label">XP Earned</span>
+                    <span class="stat-value" id="statXP">0</span>
+                </div>
+
+            </div>
+
+            <div class="high-score-box" id="highScoreMessage">
+                Great Trading!
+            </div>
+            <div class="portfolio-history">
+
+              <h3>Portfolio Performance</h3>
+
+              <canvas id="portfolioChart"></canvas>
+
+            </div>
+
+            <button id="newSessionBtn" class="btn-primary">
+                New Session
+            </button>
+
         </div>
 
-        <button id="newSessionBtn" class="btn-primary">New Session</button>
-      </div>
     </div>
-  </div>
 
+</div>
+
+ <!-- Leaderboard Screen -->
+
+<div id="leaderboardScreen" class="screen">
+
+    <div class="screen-content">
+
+        <div class="leaderboard-card">
+
+            <h2>🏆 Top Traders</h2>
+
+            <table class="leaderboard-table">
+
+                <thead>
+
+                    <tr>
+
+                        <th>Rank</th>
+                        <th>Player</th>
+                        <th>Net Worth</th>
+                        <th>Level</th>
+                        <th>Date</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody id="leaderboardBody">
+
+                </tbody>
+
+            </table>
+
+            <button
+                id="closeLeaderboard"
+                class="btn-primary">
+
+                Back
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
   <!-- Level Up Overlay -->
   <div id="levelUpOverlay" class="overlay hidden">
     <div class="level-up-card">
