@@ -34,6 +34,31 @@ let nepseChartInst=null,miniPfChartInst=null,pfChartInst=null,gameChart=null;
 let isLiveData=false,liveDataTimer=null;
 let obBank=null,obBroker=null;
 
+// ===== SOUND SYSTEM =====
+let _actx=null;
+function _ac(){if(!_actx)_actx=new(window.AudioContext||window.webkitAudioContext)();return _actx;}
+function playSound(type){
+  try{
+    const ctx=_ac(),now=ctx.currentTime;
+    const beep=(f,t,d,vol=0.25,wave='sine')=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type=wave;o.frequency.value=f;
+      g.gain.setValueAtTime(vol,now+t);
+      g.gain.exponentialRampToValueAtTime(0.001,now+t+d);
+      o.connect(g);g.connect(ctx.destination);
+      o.start(now+t);o.stop(now+t+d);
+    };
+    if(type==='buy'){beep(523,.0,.12);beep(659,.1,.15);beep(784,.2,.2);}
+    else if(type==='sell'){beep(784,.0,.12);beep(659,.1,.12);beep(523,.2,.2);}
+    else if(type==='levelup'){[523,659,784,1047].forEach((f,i)=>beep(f,i*.12,.18,.3));}
+    else if(type==='error'){beep(220,.0,.2,.2,'sawtooth');}
+    else if(type==='win'){[523,659,784,659,784,1047].forEach((f,i)=>beep(f,i*.1,.15,.25));}
+    else if(type==='lose'){[392,349,330,294].forEach((f,i)=>beep(f,i*.15,.2,.2,'triangle'));}
+    else if(type==='mission'){beep(784,.0,.12);beep(1047,.15,.25,.3);}
+    else if(type==='open'){beep(660,.0,.3,.2);beep(880,.2,.4,.25);}
+  }catch(_){}
+}
+
 const CORS_PROXY="https://api.allorigins.win/get?url=";
 const NEPSE_SEC="https://nepalstock.com/api/nots/security";
 const NEPSE_IDX="https://nepalstock.com/api/nots/nepse-data/today";
@@ -116,7 +141,7 @@ function getLTTotal(){let t=LT_CASH;for(const k in LT_HOLDINGS)t+=(LT_HOLDINGS[k
 
 function startMarket(){
   mktTimer=setInterval(()=>{
-    if(!isLiveData){
+    if(!isLiveData&&isMarketOpen()){
       for(const t in STOCKS){prevPrices[t]=prices[t];const d=(Math.random()-.48)*STOCKS[t].vol;prices[t]=Math.max(1,Math.round(prices[t]*(1+d)*100)/100);priceHist[t].push(prices[t]);if(priceHist[t].length>60)priceHist[t].shift();}
       const avgD=Object.keys(STOCKS).reduce((s,t)=>s+(prices[t]-prevPrices[t])/prevPrices[t],0)/Object.keys(STOCKS).length;
       nepseVal=Math.max(1000,Math.round(nepseVal*(1+avgD*.8)*100)/100);nepseHist.push(nepseVal);if(nepseHist.length>60)nepseHist.shift();
@@ -159,8 +184,6 @@ document.addEventListener("DOMContentLoaded",()=>{
   });
   document.getElementById("enterMarketBtn").addEventListener("click",()=>launchApp());
   document.getElementById("lvlContinue").addEventListener("click",()=>document.getElementById("lvlOverlay").classList.add("hidden"));
-  document.getElementById("startPaperBtn").addEventListener("click",startPaperGame);
-  document.getElementById("playAgainBtn").addEventListener("click",resetPaperGame);
 });
 
 function launchApp(){
@@ -220,7 +243,13 @@ function openQTFromModal(side){closeStockModal();switchTab("portfolio");if(modal
 function buildQTSelect(){document.getElementById("qtSelect").innerHTML=Object.keys(STOCKS).map(t=>`<option value="${t}">${t} - ${STOCKS[t].name}</option>`).join("");}
 function updateQTDisplay(){const t=document.getElementById("qtSelect")?.value||Object.keys(STOCKS)[0];const s=STOCKS[t],p=prices[t],chg=((p-prevPrices[t])/prevPrices[t]*100).toFixed(2),held=QT_HOLDINGS[t]||0,avg=QT_AVG[t]||0,pnl=held>0&&avg>0?(p-avg)*held:0,pct=held>0&&avg>0?((p-avg)/avg*100).toFixed(2):0;document.getElementById("qtCard").innerHTML=`<div class="qpc-top"><div><span class="qpc-sym" style="color:${s.color}">${t}</span><span class="qpc-sec">${s.name}</span></div><div><span class="qpc-pr">NPR ${fmtNPR(p)}</span><span class="qpc-chg ${chg>=0?"up":"down"}">${chg>=0?"+":""}${chg}%</span></div></div>${held>0?`<div class="qpc-hold"><span>${held} sh Avg NPR ${fmtNPR(avg)}</span><span class="${pnl>=0?"up":"down"}">${pnl>=0?"+":"-"}NPR ${fmtNPR(Math.abs(pnl))}</span></div>`:""}`;document.getElementById("qtCashShow").textContent="NPR "+fmtNPR(QT_CASH);}
 function adjQTQty(d){const i=document.getElementById("qtQtyInput");i.value=Math.max(1,parseInt(i.value||1)+d);}
-function doQuickTrade(side){const t=document.getElementById("qtSelect").value,qty=parseInt(document.getElementById("qtQtyInput").value)||1,p=prices[t];if(side==="BUY"){const cost=p*qty;if(QT_CASH<cost){toast("Insufficient cash!","red");return;}const prev=(QT_AVG[t]||0)*(QT_HOLDINGS[t]||0);QT_CASH-=cost;QT_HOLDINGS[t]=(QT_HOLDINGS[t]||0)+qty;QT_AVG[t]=QT_HOLDINGS[t]>0?(prev+cost)/QT_HOLDINGS[t]:0;QT_HISTORY.unshift({t,side,qty,p,time:new Date().toLocaleTimeString()});toast("Bought "+qty+"x "+t+" @ NPR "+fmtNPR(p),"green");}else{const held=QT_HOLDINGS[t]||0,aq=Math.min(qty,held);if(aq<1){toast("No shares to sell!","red");return;}QT_CASH+=p*aq;QT_HOLDINGS[t]-=aq;if(QT_HOLDINGS[t]===0){delete QT_HOLDINGS[t];delete QT_AVG[t];}QT_HISTORY.unshift({t,side,qty:aq,p,time:new Date().toLocaleTimeString()});toast("Sold "+aq+"x "+t+" @ NPR "+fmtNPR(p),"green");}totalTrades++;appXP+=5;checkAppLevelUp();updateQTDisplay();updatePortfolioData();saveState();}
+function doQuickTrade(side){
+  if(!isMarketOpen()){playSound('error');toast("Market closed! Quick Trade: Sun\u2013Thu 11AM\u20133PM NPT","red");return;}
+  const t=document.getElementById("qtSelect").value,qty=parseInt(document.getElementById("qtQtyInput").value)||1,p=prices[t];
+  if(side==="BUY"){const cost=p*qty;if(QT_CASH<cost){toast("Insufficient cash!","red");return;}const prev=(QT_AVG[t]||0)*(QT_HOLDINGS[t]||0);QT_CASH-=cost;QT_HOLDINGS[t]=(QT_HOLDINGS[t]||0)+qty;QT_AVG[t]=QT_HOLDINGS[t]>0?(prev+cost)/QT_HOLDINGS[t]:0;QT_HISTORY.unshift({t,side,qty,p,time:new Date().toLocaleTimeString()});playSound('buy');toast("Bought "+qty+"x "+t+" @ NPR "+fmtNPR(p),"green");}
+  else{const held=QT_HOLDINGS[t]||0,aq=Math.min(qty,held);if(aq<1){toast("No shares to sell!","red");return;}QT_CASH+=p*aq;QT_HOLDINGS[t]-=aq;if(QT_HOLDINGS[t]===0){delete QT_HOLDINGS[t];delete QT_AVG[t];}QT_HISTORY.unshift({t,side,qty:aq,p,time:new Date().toLocaleTimeString()});playSound('sell');toast("Sold "+aq+"x "+t+" @ NPR "+fmtNPR(p),"green");}
+  totalTrades++;appXP+=5;checkAppLevelUp();updateQTDisplay();updatePortfolioData();saveState();
+}
 function quickSell(t){document.getElementById("qtSelect").value=t;updateQTDisplay();doQuickTrade("SELL");}
 
 function updatePortfolioData(){
@@ -269,8 +298,8 @@ function updateLTDisplay(){const sel=document.getElementById("ltSelect");if(!sel
 function adjLTQty(d,f){const id=f==="M"?"ltQtyM":f==="L"?"ltQtyL":"ltQtyS";const i=document.getElementById(id);if(i)i.value=Math.max(1,parseInt(i.value||1)+d);}
 function placeLTOrder(side){const t=document.getElementById("ltSelect").value,p=prices[t];if(ltOrderType==="market"){executeLTTrade(t,side,parseInt(document.getElementById("ltQtyM").value)||1,p);}else if(ltOrderType==="limit"){const qty=parseInt(document.getElementById("ltQtyL").value)||1,tp=parseFloat(document.getElementById("ltLimitPrice").value);if(!tp||tp<=0){toast("Enter target price!","red");return;}LT_ORDERS.push({id:Date.now(),ticker:t,type:"LIMIT",side,qty,targetPrice:tp,status:"OPEN",createdAt:new Date().toLocaleTimeString()});updateOpenOrders();toast("Limit "+side+" queued: "+qty+"x "+t+" @ NPR "+fmtNPR(tp),"warning");}else{const qty=parseInt(document.getElementById("ltQtyS").value)||1,sp=parseFloat(document.getElementById("ltStopPrice").value);if(!sp||sp<=0){toast("Enter stop price!","red");return;}const held=LT_HOLDINGS[t]||0;if(held<1){toast("No shares to protect!","red");return;}LT_ORDERS.push({id:Date.now(),ticker:t,type:"STOP",side:"SELL",qty:Math.min(qty,held),targetPrice:sp,status:"OPEN",createdAt:new Date().toLocaleTimeString()});updateOpenOrders();toast("Stop Loss set: "+Math.min(qty,held)+"x "+t+" @ NPR "+fmtNPR(sp),"warning");}saveState();}
 function executeLTTrade(ticker,side,qty,price){
-  if(!isMarketOpen()){const s=getMarketStatus();toast("Market "+s.label+"! Live trading: Sun-Thu 11AM-3PM NPT","red");return;}
-  if(side==="BUY"){const cost=price*qty;if(LT_CASH<cost){toast("Insufficient balance!","red");return;}const prev=(LT_AVG[ticker]||0)*(LT_HOLDINGS[ticker]||0);LT_CASH-=cost;LT_HOLDINGS[ticker]=(LT_HOLDINGS[ticker]||0)+qty;LT_AVG[ticker]=LT_HOLDINGS[ticker]>0?(prev+cost)/LT_HOLDINGS[ticker]:0;LT_HISTORY.unshift({ticker,side,qty,price,time:new Date().toLocaleTimeString()});if(LT_HISTORY.length>50)LT_HISTORY.pop();toast("Bought "+qty+"x "+ticker+" @ NPR "+fmtNPR(price),"green");}else{const held=LT_HOLDINGS[ticker]||0,aq=Math.min(qty,held);if(aq<1){toast("No shares!","red");return;}LT_CASH+=price*aq;LT_HOLDINGS[ticker]-=aq;if(LT_HOLDINGS[ticker]===0){delete LT_HOLDINGS[ticker];delete LT_AVG[ticker];}LT_HISTORY.unshift({ticker,side,qty:aq,price,time:new Date().toLocaleTimeString()});if(LT_HISTORY.length>50)LT_HISTORY.pop();toast("Sold "+aq+"x "+ticker+" @ NPR "+fmtNPR(price),"green");}
+  if(!isMarketOpen()){const s=getMarketStatus();playSound('error');toast("Market "+s.label+"! Live trading: Sun-Thu 11AM-3PM NPT","red");return;}
+  if(side==="BUY"){const cost=price*qty;if(LT_CASH<cost){toast("Insufficient balance!","red");return;}const prev=(LT_AVG[ticker]||0)*(LT_HOLDINGS[ticker]||0);LT_CASH-=cost;LT_HOLDINGS[ticker]=(LT_HOLDINGS[ticker]||0)+qty;LT_AVG[ticker]=LT_HOLDINGS[ticker]>0?(prev+cost)/LT_HOLDINGS[ticker]:0;LT_HISTORY.unshift({ticker,side,qty,price,time:new Date().toLocaleTimeString()});if(LT_HISTORY.length>50)LT_HISTORY.pop();playSound('buy');toast("Bought "+qty+"x "+ticker+" @ NPR "+fmtNPR(price),"green");}else{const held=LT_HOLDINGS[ticker]||0,aq=Math.min(qty,held);if(aq<1){toast("No shares!","red");return;}LT_CASH+=price*aq;LT_HOLDINGS[ticker]-=aq;if(LT_HOLDINGS[ticker]===0){delete LT_HOLDINGS[ticker];delete LT_AVG[ticker];}LT_HISTORY.unshift({ticker,side,qty:aq,price,time:new Date().toLocaleTimeString()});if(LT_HISTORY.length>50)LT_HISTORY.pop();playSound('sell');toast("Sold "+aq+"x "+ticker+" @ NPR "+fmtNPR(price),"green");}
   totalTrades++;appXP+=5;checkAppLevelUp();updateLTDisplay();updateLTHoldings();updatePortfolioData();saveState();
 }
 function processLimitOrders(){let filled=false;LT_ORDERS.forEach(o=>{if(o.status!=="OPEN")return;const cp=prices[o.ticker];let hit=false;if(o.type==="LIMIT"&&o.side==="BUY"&&cp<=o.targetPrice)hit=true;if(o.type==="LIMIT"&&o.side==="SELL"&&cp>=o.targetPrice)hit=true;if(o.type==="STOP"&&cp<=o.targetPrice)hit=true;if(hit){o.status="FILLED";executeLTTrade(o.ticker,o.side,o.qty,cp);filled=true;toast("Filled: "+o.side+" "+o.qty+"x "+o.ticker+" @ NPR "+fmtNPR(cp),"green");}});if(filled&&currentTab==="trade"&&currentTradeTab==="live")updateOpenOrders();}
@@ -280,24 +309,74 @@ function updateLTHoldings(){const held=Object.keys(LT_HOLDINGS).filter(t=>LT_HOL
 
 // PAPER GAME
 function resetPaperGame(){document.getElementById("paperGame").classList.add("hidden");document.getElementById("paperResult").classList.add("hidden");document.getElementById("paperStart").classList.remove("hidden");gameEnded=false;}
-function startPaperGame(){if(gameTimer)clearInterval(gameTimer);document.getElementById("paperStart").classList.add("hidden");document.getElementById("paperResult").classList.add("hidden");document.getElementById("paperGame").classList.remove("hidden");gameEnded=false;PG={cash:100000,holdings:{},avg:{},trades:0,xp:0,history:[],missions:[{id:"first",text:"First Trade",done:false,req:1,curr:0},{id:"five",text:"5 Trades",done:false,req:5,curr:0},{id:"profit",text:"Reach 1.1L",done:false,req:110000,curr:0}]};let t=90;buildGameCards();buildMissions();gameTimer=setInterval(()=>{t--;const m=Math.floor(t/60),s=t%60;document.getElementById("pgTimer").textContent=m+":"+(s<10?"0":"")+s;if(t<=10)document.getElementById("pgTimer").style.color="var(--red)";if(t<=0){clearInterval(gameTimer);endPaperGame();return;}GAME_TICKERS.forEach(tk=>{const d=(Math.random()-.48)*.04;prices[tk]=Math.max(1,Math.round(prices[tk]*(1+d)*100)/100);});updateGameCards();updateGameHUD();},1000);}
+function startPaperGame(){
+  if(gameTimer)clearInterval(gameTimer);
+  pgChartActive="NABIL";
+  document.getElementById("paperStart").classList.add("hidden");
+  document.getElementById("paperResult").classList.add("hidden");
+  document.getElementById("paperGame").classList.remove("hidden");
+  gameEnded=false;
+  // Seed priceHist for game tickers with at least 2 points so chart renders
+  GAME_TICKERS.forEach(tk=>{ if(priceHist[tk].length<2) priceHist[tk].push(prices[tk]); });
+  PG={cash:100000,holdings:{},avg:{},trades:0,xp:0,history:[],missions:[{id:"first",text:"First Trade",done:false,req:1,curr:0},{id:"five",text:"5 Trades",done:false,req:5,curr:0},{id:"profit",text:"Reach 1.1L",done:false,req:110000,curr:0}]};
+  let t=90;
+  buildGameCards();buildMissions();
+  gameTimer=setInterval(()=>{
+    t--;
+    const m=Math.floor(t/60),s=t%60;
+    document.getElementById("pgTimer").textContent=m+":"+(s<10?"0":"")+s;
+    if(t<=10)document.getElementById("pgTimer").style.color="var(--red)";
+    if(t<=0){clearInterval(gameTimer);endPaperGame();return;}
+    GAME_TICKERS.forEach(tk=>{
+      const d=(Math.random()-.48)*.04;
+      prevPrices[tk]=prices[tk];
+      prices[tk]=Math.max(1,Math.round(prices[tk]*(1+d)*100)/100);
+      priceHist[tk].push(prices[tk]);
+      if(priceHist[tk].length>60)priceHist[tk].shift();
+    });
+    updateGameCards();updateGameHUD();updateGameChart();
+  },1000);
+}
 function pgNW(){let w=PG.cash;for(const k in PG.holdings)w+=(PG.holdings[k]||0)*(prices[k]||STOCKS[k].price);return w;}
 function buildGameCards(){const ct=document.getElementById("pgChartTabs");if(ct)ct.innerHTML=GAME_TICKERS.map(t=>`<button class="ctab${t===pgChartActive?" active":""}" onclick="pgSetChart('${t}')">${t}</button>`).join("");document.getElementById("pgCards").innerHTML=GAME_TICKERS.map(t=>{const s=STOCKS[t],p=prices[t],chg=((p-prevPrices[t])/prevPrices[t]*100).toFixed(2),owned=PG.holdings[t]||0;return `<div class="game-card" id="gc-${t}"><div class="gc-head"><span class="gc-sym" style="color:${s.color}">${t}</span><span class="gc-chg ${chg>=0?"up":"down"}">${chg>=0?"+":""}${chg}%</span></div><div class="gc-pr">NPR ${fmtNPR(p)}</div><div class="gc-owned">${owned>0?"Owned: "+owned:"-"}</div><div class="gc-qty"><button class="gc-qty-btn" onclick="setPGQty('${t}',-1)">-</button><input id="gq-${t}" type="number" value="1" min="1" class="gc-qty-inp"><button class="gc-qty-btn" onclick="setPGQty('${t}',1)">+</button></div><div class="gc-btns"><button class="tbuy" style="flex:1;padding:7px;font-size:12px" onclick="pgTrade('${t}','BUY')">BUY</button><button class="tsell" style="flex:1;padding:7px;font-size:12px" onclick="pgTrade('${t}','SELL')">SELL</button></div></div>`;}).join("");buildGameChart();}
-function pgSetChart(t){pgChartActive=t;buildGameChart();}
+function pgSetChart(t){
+  pgChartActive=t;
+  document.querySelectorAll(".ctab").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".ctab").forEach(b=>{ if(b.getAttribute("onclick")?.includes("'"+t+"'")) b.classList.add("active"); });
+  buildGameChart();
+}
 function setPGQty(t,d){const i=document.getElementById("gq-"+t);if(i)i.value=Math.max(1,parseInt(i.value||1)+d);}
 function updateGameCards(){GAME_TICKERS.forEach(t=>{const card=document.getElementById("gc-"+t);if(!card)return;const p=prices[t],chg=((p-prevPrices[t])/prevPrices[t]*100).toFixed(2);const pr=card.querySelector(".gc-pr");if(pr)pr.textContent="NPR "+fmtNPR(p);const ch=card.querySelector(".gc-chg");if(ch){ch.textContent=(chg>=0?"+":"")+chg+"%";ch.className="gc-chg "+(chg>=0?"up":"down");}const ow=card.querySelector(".gc-owned");if(ow)ow.textContent=(PG.holdings[t]||0)>0?"Owned: "+(PG.holdings[t]):"-";});}
-function pgTrade(t,side){if(gameEnded)return;const qty=parseInt(document.getElementById("gq-"+t)?.value||1)||1,p=prices[t];if(side==="BUY"){const cost=p*qty;if(PG.cash<cost){toast("Not enough cash!","red");return;}const prev=(PG.avg[t]||0)*(PG.holdings[t]||0);PG.cash-=cost;PG.holdings[t]=(PG.holdings[t]||0)+qty;PG.avg[t]=PG.holdings[t]>0?(prev+cost)/PG.holdings[t]:0;}else{const held=PG.holdings[t]||0,aq=Math.min(qty,held);if(aq<1){toast("No shares!","red");return;}PG.cash+=p*aq;PG.holdings[t]-=aq;if(PG.holdings[t]===0){delete PG.holdings[t];delete PG.avg[t];}}PG.trades++;PG.xp+=3;appXP+=3;checkAppLevelUp();PG.history.unshift({t,side,qty,p});const tl=document.getElementById("pgTradeLog");if(tl)tl.innerHTML=PG.history.slice(0,8).map(h=>`<div class="tli ${h.side.toLowerCase()}">${h.side} ${h.t} ${h.qty}x @ ${fmtNPR(h.p)}</div>`).join("");updateGameHUD();updateMissionProgress();toast((side==="BUY"?"Bought ":"Sold ")+qty+"x "+t,(side==="BUY"?"green":"warning"));}
+function pgTrade(t,side){if(gameEnded)return;const qty=parseInt(document.getElementById("gq-"+t)?.value||1)||1,p=prices[t];if(side==="BUY"){const cost=p*qty;if(PG.cash<cost){toast("Not enough cash!","red");return;}const prev=(PG.avg[t]||0)*(PG.holdings[t]||0);PG.cash-=cost;PG.holdings[t]=(PG.holdings[t]||0)+qty;PG.avg[t]=PG.holdings[t]>0?(prev+cost)/PG.holdings[t]:0;}else{const held=PG.holdings[t]||0,aq=Math.min(qty,held);if(aq<1){toast("No shares!","red");return;}PG.cash+=p*aq;PG.holdings[t]-=aq;if(PG.holdings[t]===0){delete PG.holdings[t];delete PG.avg[t];}}PG.trades++;PG.xp+=3;appXP+=3;checkAppLevelUp();PG.history.unshift({t,side,qty,p});playSound(side==="BUY"?'buy':'sell');const tl=document.getElementById("pgTradeLog");if(tl)tl.innerHTML=PG.history.slice(0,8).map(h=>`<div class="tli ${h.side.toLowerCase()}">${h.side} ${h.t} ${h.qty}x @ ${fmtNPR(h.p)}</div>`).join("");updateGameHUD();updateMissionProgress();toast((side==="BUY"?"Bought ":"Sold ")+qty+"x "+t,(side==="BUY"?"green":"warning"));}
 function updateGameHUD(){const nw=pgNW(),pct=((nw-100000)/100000*100).toFixed(1);document.getElementById("pgNW").textContent="NPR "+fmtNPR(nw);const pp=document.getElementById("pgPnl");pp.textContent=(pct>=0?"+":"")+pct+"%";pp.className="hud-val "+(pct>=0?"up":"down");const lvl=appLevel-1,xpMin=XP_THRESH[lvl]||0,xpMax=XP_THRESH[lvl+1]||xpMin+100,xpPct=Math.min(100,((appXP-xpMin)/(xpMax-xpMin))*100);document.getElementById("pgXpFill").style.width=xpPct+"%";document.getElementById("pgXpText").textContent=appXP+" XP";document.getElementById("pgSentBadge").textContent=pct>3?"BULL":pct<-3?"BEAR":"NEUTRAL";}
 function buildMissions(){const el=document.getElementById("pgMissions");if(el)el.innerHTML=PG.missions.map(m=>`<div class="mi-item">${m.done?"[x]":"[ ]"} ${m.text}</div>`).join("");}
-function updateMissionProgress(){PG.missions.forEach(m=>{if(m.done)return;if(m.id==="first"||m.id==="five")m.curr=PG.trades;if(m.id==="profit")m.curr=pgNW();if(m.curr>=m.req){m.done=true;PG.xp+=20;appXP+=20;toast("Mission done: "+m.text,"warning");}});buildMissions();}
-function endPaperGame(){gameEnded=true;const nw=pgNW(),pnl=nw-100000,pct=((pnl/100000)*100).toFixed(1);document.getElementById("paperGame").classList.add("hidden");document.getElementById("paperResult").classList.remove("hidden");const tiers=[{min:200000,ico:"Trophy",title:"LEGEND"},{min:150000,ico:"Diamond",title:"INVESTOR"},{min:120000,ico:"Chart",title:"TRADER"},{min:100000,ico:"Ok",title:"BREAK EVEN"},{min:0,ico:"Cash",title:"WIPED OUT"}];const tier=tiers.find(t=>nw>=t.min)||tiers[4];document.getElementById("prIco").textContent=nw>=200000?"🏆":nw>=150000?"💎":nw>=120000?"📈":nw>=100000?"🤝":"💸";document.getElementById("prTitle").textContent=tier.title;document.getElementById("prMsg").textContent=pct>0?"You made NPR "+fmtNPR(pnl)+" profit!":"Better luck next time!";document.getElementById("prFinal").textContent="NPR "+fmtNPR(nw);const pp=document.getElementById("prPnl");pp.textContent=(pct>=0?"+":"")+pct+"%";pp.className=pct>=0?"up":"down";document.getElementById("prTrades").textContent=PG.trades;document.getElementById("prXp").textContent=PG.xp+" XP";if(nw>bestSession){bestSession=nw;leaderboard.push({name:playerName,worth:nw,date:new Date().toLocaleDateString()});if(leaderboard.length>20)leaderboard.sort((a,b)=>b.worth-a.worth).splice(20);}sessionHistory.unshift({worth:nw,pct:parseFloat(pct),trades:PG.trades,date:new Date().toLocaleDateString()});if(sessionHistory.length>20)sessionHistory.pop();saveState();}
+function updateMissionProgress(){PG.missions.forEach(m=>{if(m.done)return;if(m.id==="first"||m.id==="five")m.curr=PG.trades;if(m.id==="profit")m.curr=pgNW();if(m.curr>=m.req){m.done=true;PG.xp+=20;appXP+=20;playSound('mission');toast("Mission done: "+m.text,"warning");}});buildMissions();}
+function endPaperGame(){gameEnded=true;const nw=pgNW(),pnl=nw-100000,pct=((pnl/100000)*100).toFixed(1);
+  document.getElementById("paperGame").classList.add("hidden");
+  document.getElementById("paperResult").classList.remove("hidden");
+  const tiers=[{min:200000,ico:"Trophy",title:"LEGEND"},{min:150000,ico:"Diamond",title:"INVESTOR"},{min:120000,ico:"Chart",title:"TRADER"},{min:100000,ico:"Ok",title:"BREAK EVEN"},{min:0,ico:"Cash",title:"WIPED OUT"}];
+  const tier=tiers.find(t=>nw>=t.min)||tiers[4];
+  const profitable=nw>=100000;
+  playSound(nw>=120000?'win':'lose');
+  document.getElementById("prIco").textContent=nw>=200000?"🏆":nw>=150000?"💎":nw>=120000?"📈":nw>=100000?"🤝":"💸";
+  document.getElementById("prTitle").textContent=tier.title;
+  document.getElementById("prMsg").textContent=pct>0?"You made NPR "+fmtNPR(pnl)+" profit!":"Better luck next time!";
+  document.getElementById("prFinal").textContent="NPR "+fmtNPR(nw);
+  const pp=document.getElementById("prPnl");pp.textContent=(pct>=0?"+":"")+pct+"%";pp.className=pct>=0?"up":"down";
+  document.getElementById("prTrades").textContent=PG.trades;
+  document.getElementById("prXp").textContent=PG.xp+" XP";
+  if(nw>bestSession){bestSession=nw;leaderboard.push({name:playerName,worth:nw,date:new Date().toLocaleDateString()});if(leaderboard.length>20)leaderboard.sort((a,b)=>b.worth-a.worth).splice(20);}
+  sessionHistory.unshift({worth:nw,pct:parseFloat(pct),trades:PG.trades,date:new Date().toLocaleDateString()});
+  if(sessionHistory.length>20)sessionHistory.pop();
+  saveState();
+}
 
 // PROFILE
 function updateProfileData(){document.getElementById("profileAvatar").textContent=(playerName||"T")[0].toUpperCase();document.getElementById("profileName").textContent=playerName||"Trader";document.getElementById("profileBadge").textContent="Level "+appLevel+" - "+(LVL_TITLES[appLevel-1]||"Trader");const lvl=appLevel-1,xpMin=XP_THRESH[lvl]||0,xpMax=XP_THRESH[lvl+1]||xpMin+100,xpPct=Math.min(100,((appXP-xpMin)/(xpMax-xpMin))*100);document.getElementById("profileXpFill").style.width=xpPct+"%";document.getElementById("profileXpText").textContent=appXP+" / "+xpMax+" XP";document.getElementById("psTrades").textContent=totalTrades;document.getElementById("psBest").textContent=bestSession>0?"NPR "+fmtNPR(bestSession):"--";document.getElementById("psStreak").textContent=streak+" days";document.getElementById("psLevel").textContent=appLevel;renderAchievements();renderSessionHistory();}
 const ACHIEVEMENTS=[{id:"first",ico:"Medal",name:"First Trade",desc:"Make your first trade",check:()=>totalTrades>=1},{id:"ten",ico:"10",name:"10 Trades",desc:"Complete 10 trades",check:()=>totalTrades>=10},{id:"lv2",ico:"Star",name:"Level Up",desc:"Reach Level 2",check:()=>appLevel>=2},{id:"profit",ico:"Money",name:"Profitable",desc:"End session in profit",check:()=>bestSession>100000},{id:"streak",ico:"Fire",name:"3-Day Streak",desc:"Login 3 days in a row",check:()=>streak>=3},{id:"lt5",ico:"Radar",name:"Live Trader",desc:"Make 5 live trades",check:()=>LT_HISTORY.length>=5}];
 function renderAchievements(){document.getElementById("achieveGrid").innerHTML=ACHIEVEMENTS.map(a=>{const u=a.check();return `<div class="ach-card ${u?"unlocked":""}"><span class="ach-ico">${u?"✅":"🔒"}</span><div><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div></div>`;}).join("");}
 function renderSessionHistory(){const el=document.getElementById("sessionList");if(!el)return;if(!sessionHistory.length){el.innerHTML="<div class='empty-s'>No sessions yet</div>";return;}el.innerHTML=sessionHistory.slice(0,10).map(s=>`<div class="si"><div><div class="si-val ${s.pct>=0?"up":"down"}">${s.pct>=0?"+":""}${s.pct}%</div><div style="font-size:11px;color:var(--muted)">${s.trades} trades</div></div><div style="text-align:right"><div style="font-family:var(--fm);font-size:13px">NPR ${fmtNPR(s.worth)}</div><div class="si-date">${s.date}</div></div></div>`).join("");}
-function checkAppLevelUp(){const next=XP_THRESH[appLevel];if(!next||appXP<next)return;appLevel++;const ol=document.getElementById("lvlOverlay");if(ol)ol.classList.remove("hidden");document.getElementById("lvlNum").textContent=appLevel;document.getElementById("lvlTitle").textContent=LVL_TITLES[appLevel-1]||"";toast("Level Up! Now Level "+appLevel,"warning");}
+function checkAppLevelUp(){const next=XP_THRESH[appLevel];if(!next||appXP<next)return;appLevel++;playSound('levelup');const ol=document.getElementById("lvlOverlay");if(ol)ol.classList.remove("hidden");document.getElementById("lvlNum").textContent=appLevel;document.getElementById("lvlTitle").textContent=LVL_TITLES[appLevel-1]||"";toast("Level Up! Now Level "+appLevel,"warning");}
 
 // CHARTS
 function buildNepseChart(){const c=document.getElementById("nepseChart");if(!c)return;if(nepseChartInst)nepseChartInst.destroy();nepseChartInst=new Chart(c,{type:"line",data:{labels:nepseHist.map((_,i)=>i),datasets:[{data:nepseHist,borderColor:"#4AFFCE",borderWidth:2,fill:true,backgroundColor:"rgba(74,255,206,0.06)",tension:.4,pointRadius:0}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}},animation:{duration:0}}});}

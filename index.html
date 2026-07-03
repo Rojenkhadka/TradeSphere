@@ -62,7 +62,7 @@
     <div class="lvl-ring" id="lvlNum">2</div>
     <h2>LEVEL UP!</h2>
     <p id="lvlTitle">Trader</p>
-    <button id="lvlContinue" class="btn-primary">Continue</button>
+    <button id="lvlContinue" class="btn-primary" onclick="document.getElementById('lvlOverlay').classList.add('hidden')">Continue</button>
   </div>
 </div>
 
@@ -179,7 +179,7 @@
             <div class="ps-rule">90 second session</div><div class="ps-rule">6 NEPSE stocks</div>
             <div class="ps-rule">NPR 1,00,000 capital</div><div class="ps-rule">Target NPR 2,00,000</div>
           </div>
-          <button id="startPaperBtn" class="btn-primary btn-lg">Start Trading</button>
+          <button id="startPaperBtn" class="btn-primary btn-lg" onclick="startPaperGame()">Start Trading</button>
         </div>
         <div id="paperGame" class="hidden">
           <div class="pg-hud">
@@ -210,7 +210,7 @@
             <div class="pr-stat"><span id="prTrades">0</span><label>Trades</label></div>
             <div class="pr-stat"><span id="prXp">0 XP</span><label>XP Earned</label></div>
           </div>
-          <button id="playAgainBtn" class="btn-primary btn-lg" style="margin-top:14px">Play Again</button>
+          <button id="playAgainBtn" class="btn-primary btn-lg" onclick="resetPaperGame()" style="margin-top:14px">Play Again</button>
         </div>
       </div>
       <!-- LIVE -->
@@ -328,6 +328,9 @@
         <div class="tb-head">
           <span class="tb-title">Quick Trade</span>
           <span class="tb-cash">Cash: <strong id="qtCashShow">NPR 1,00,000</strong></span>
+        </div>
+        <div id="qtClosedNotice" class="qt-closed-notice hidden">
+          <span>Market Closed &mdash; Trading resumes Sunday 11:00 AM NPT</span>
         </div>
         <select id="qtSelect" class="qt-sel" onchange="updateQTDisplay()"></select>
         <div id="qtCard" class="qt-price-card"></div>

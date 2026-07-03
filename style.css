@@ -357,4 +357,6 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .acc-actions{padding:20px 0 10px;text-align:center}
 .delete-acc-btn{background:none;border:1px solid rgba(244,63,94,0.4);border-radius:10px;color:var(--red);padding:12px 24px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--ff);transition:all .2s;width:100%}
 .delete-acc-btn:hover{background:var(--rbg)}
+.qt-closed-notice{background:rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.25);border-radius:var(--rs);padding:9px 12px;font-size:12px;color:var(--red);font-weight:600;text-align:center;margin-bottom:8px}
+.tbuy:disabled,.tsell:disabled{opacity:.35;cursor:not-allowed;filter:grayscale(.6)}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
