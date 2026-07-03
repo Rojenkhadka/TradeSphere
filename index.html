@@ -1,292 +1,418 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TradeSphere - Stock Trading Simulation</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <title>TradeSphere</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
-  <!-- Toast Container -->
-  <div id="toastContainer" class="toast-container"></div>
 
-  <!-- Start Screen -->
-  <div id="startScreen" class="screen active">
-    <div class="glow-background"></div>
-    <div class="ticker-tape"></div>
-    <div class="screen-content">
-      <div class="logo">
-        <h1>TradeSphere</h1>
-        <p class="tagline">Master the market in 90 seconds</p>
+<!-- ONBOARDING -->
+<div id="loginModal" class="login-overlay">
+  <div class="login-card">
+    <div class="ob-dots">
+      <div class="ob-dot active" id="dot1"></div><div class="ob-line" id="line1"></div>
+      <div class="ob-dot" id="dot2"></div><div class="ob-line" id="line2"></div>
+      <div class="ob-dot" id="dot3"></div>
+    </div>
+    <!-- Step 1 -->
+    <div id="ob1" class="ob-panel">
+      <div class="login-brand"><span class="brand-name">TradeSphere</span><p>NEPSE Paper Trading Simulator</p></div>
+      <div class="login-badges"><span class="badge-pill">NEPSE</span><span class="badge-pill">20 Stocks</span><span class="badge-pill">Virtual</span></div>
+      <div class="ob-field-lbl">Your Trader Name</div>
+      <input type="text" id="loginName" placeholder="Enter your name..." maxlength="15" autocomplete="off">
+      <button id="loginBtn" class="btn-primary btn-lg">Next</button>
+    </div>
+    <!-- Step 2 -->
+    <div id="ob2" class="ob-panel hidden">
+      <div class="ob-step-hd">Select Your Bank</div>
+      <div class="ob-step-sub">Choose bank linked to your demat account</div>
+      <div class="ob-scroll-grid" id="bankGrid"></div>
+      <button id="bankNextBtn" class="btn-primary btn-lg" disabled>Next</button>
+    </div>
+    <!-- Step 3 -->
+    <div id="ob3" class="ob-panel hidden">
+      <div class="ob-step-hd">Select Your Broker</div>
+      <div class="ob-step-sub">Choose a NEPSE registered stockbroker</div>
+      <div class="ob-scroll-grid" id="brokerGrid"></div>
+      <button id="brokerNextBtn" class="btn-primary btn-lg" disabled>Create Account</button>
+    </div>
+    <!-- Step 4 success -->
+    <div id="ob4" class="ob-panel hidden">
+      <div class="ob-success-ico">🎉</div>
+      <div class="ob-step-hd" style="color:var(--green)">Account Created!</div>
+      <div class="ob-credit-box">
+        <div class="ob-credit-lbl">Virtual Balance Credited</div>
+        <div class="ob-credit-amt">NPR 5,00,000</div>
+        <div class="ob-credit-note">This is <strong>virtual money</strong> for practice only. Learn NEPSE trading risk-free!</div>
       </div>
-      
-      <div class="session-info-panel">
-        <div class="info-row">
-          <span class="info-label">Starting Capital</span>
-          <span class="info-value">$1,000</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Target</span>
-          <span class="info-value">$10,000</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Session Length</span>
-          <span class="info-value">90 sec</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Markets</span>
-          <span class="info-value">4 Stocks</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Mode</span>
-          <span class="info-value">Live Events</span>
-        </div>
-      </div>
-
-     
-
-      <button id="startBtn" class="btn-primary">Enter the Market</button>
+      <div class="ob-summary" id="obSummary"></div>
+      <button id="enterMarketBtn" class="btn-primary btn-lg">Enter Market</button>
     </div>
   </div>
+</div>
 
-  <!-- Game Screen -->
-  <div id="gameScreen" class="screen">
-    <!-- HUD -->
-    <div class="hud-sticky">
-      <div class="hud-container">
-        <div class="hud-chip">
-          <span class="hud-label">Cash</span>
-          <span class="hud-value" id="hudCash">$1,000.00</span>
-        </div>
-        <div class="hud-chip">
-          <span class="hud-label">Portfolio</span>
-          <span class="hud-value" id="hudPortfolio">$0.00</span>
-        </div>
-        <div class="hud-chip">
-          <span class="hud-label">Net Worth</span>
-          <span class="hud-value accent" id="hudNetWorth">$1,000.00</span>
-        </div>
-        <div class="hud-chip">
-          <span class="hud-label">Level</span>
-          <span class="hud-value" id="hudLevel">1</span>
-        </div>
-        <div class="hud-xp-bar">
-          <div class="xp-bar-fill" id="xpBarFill"></div>
-          <span class="xp-text" id="xpText">0/100</span>
-        </div>
-        <div class="hud-timer">
-          <span id="hudTimer">90</span>s
-        </div>
-      </div>
-    </div>
+<div id="toastWrap" class="toast-wrap"></div>
 
-    <!-- Chart -->
-    <div class="chart-container">
-      <div class="chart-tabs">
-        <button class="chart-tab active" data-stock="APEX">APEX</button>
-        <button class="chart-tab" data-stock="GVLT">GVLT</button>
-        <button class="chart-tab" data-stock="NXBK">NXBK</button>
-        <button class="chart-tab" data-stock="VOLX">VOLX</button>
-      </div>
-      <canvas id="priceChart"></canvas>
-    </div>
+<div id="lvlOverlay" class="overlay hidden">
+  <div class="lvl-popup">
+    <div class="lvl-ring" id="lvlNum">2</div>
+    <h2>LEVEL UP!</h2>
+    <p id="lvlTitle">Trader</p>
+    <button id="lvlContinue" class="btn-primary" onclick="document.getElementById('lvlOverlay').classList.add('hidden')">Continue</button>
+  </div>
+</div>
 
-    <!-- Main Game Layout -->
-    <div class="game-layout">
-      <!-- Trade Cards Grid -->
-      <div class="trade-cards-grid">
-        <div class="trade-card" data-stock="APEX" style="--card-color: #00D4FF;">
-          <div class="card-header">
-            <div class="stock-icon">A</div>
-            <div class="stock-info">
-              <div class="stock-name">ApexTech</div>
-              <div class="stock-ticker">APEX</div>
-            </div>
-          </div>
-          <div class="card-price">
-            <span id="price-APEX" class="price-large">$120.00</span>
-            <span id="change-APEX" class="price-change">+0.00%</span>
-          </div>
-          <div class="card-holdings">
-            <span id="shares-APEX">0 shares</span>
-            <span id="value-APEX" class="holdings-value">$0.00</span>
-          </div>
-          <div class="card-actions">
-            <button class="btn-buy" data-stock="APEX">BUY</button>
-            <button class="btn-sell" data-stock="APEX">SELL</button>
-          </div>
-        </div>
-
-        <div class="trade-card" data-stock="GVLT" style="--card-color: #2ECC71;">
-          <div class="card-header">
-            <div class="stock-icon">G</div>
-            <div class="stock-info">
-              <div class="stock-name">GreenVolt</div>
-              <div class="stock-ticker">GVLT</div>
-            </div>
-          </div>
-          <div class="card-price">
-            <span id="price-GVLT" class="price-large">$85.00</span>
-            <span id="change-GVLT" class="price-change">+0.00%</span>
-          </div>
-          <div class="card-holdings">
-            <span id="shares-GVLT">0 shares</span>
-            <span id="value-GVLT" class="holdings-value">$0.00</span>
-          </div>
-          <div class="card-actions">
-            <button class="btn-buy" data-stock="GVLT">BUY</button>
-            <button class="btn-sell" data-stock="GVLT">SELL</button>
-          </div>
-        </div>
-
-        <div class="trade-card" data-stock="NXBK" style="--card-color: #FF6B9D;">
-          <div class="card-header">
-            <div class="stock-icon">N</div>
-            <div class="stock-info">
-              <div class="stock-name">NexBank</div>
-              <div class="stock-ticker">NXBK</div>
-            </div>
-          </div>
-          <div class="card-price">
-            <span id="price-NXBK" class="price-large">$200.00</span>
-            <span id="change-NXBK" class="price-change">+0.00%</span>
-          </div>
-          <div class="card-holdings">
-            <span id="shares-NXBK">0 shares</span>
-            <span id="value-NXBK" class="holdings-value">$0.00</span>
-          </div>
-          <div class="card-actions">
-            <button class="btn-buy" data-stock="NXBK">BUY</button>
-            <button class="btn-sell" data-stock="NXBK">SELL</button>
-          </div>
-        </div>
-
-        <div class="trade-card" data-stock="VOLX" style="--card-color: #FFB547;">
-          <div class="card-header">
-            <div class="stock-icon">V</div>
-            <div class="stock-info">
-              <div class="stock-name">VolatileX</div>
-              <div class="stock-ticker">VOLX</div>
-            </div>
-          </div>
-          <div class="card-price">
-            <span id="price-VOLX" class="price-large">$50.00</span>
-            <span id="change-VOLX" class="price-change">+0.00%</span>
-          </div>
-          <div class="card-holdings">
-            <span id="shares-VOLX">0 shares</span>
-            <span id="value-VOLX" class="holdings-value">$0.00</span>
-          </div>
-          <div class="card-actions">
-            <button class="btn-buy" data-stock="VOLX">BUY</button>
-            <button class="btn-sell" data-stock="VOLX">SELL</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Bottom Panels -->
-      <div class="bottom-panels">
-        <!-- Market Events -->
-        <div class="events-panel">
-          <div class="panel-header">
-            <h3>Market Events</h3>
-          </div>
-          <div class="events-list" id="eventsList">
-            <div class="empty-state">Waiting for events...</div>
-          </div>
-        </div>
-
-        <!-- Missions -->
-        <div class="missions-panel">
-          <div class="panel-header">
-            <h3>Missions</h3>
-          </div>
-          <div class="missions-list" id="missionsList">
-            <div class="mission-item" data-mission="0">
-              <div class="mission-check"></div>
-              <span class="mission-text">Make your first trade</span>
-              <span class="mission-xp">+20 XP</span>
-            </div>
-            <div class="mission-item" data-mission="1">
-              <div class="mission-check"></div>
-              <span class="mission-text">Own 5+ shares total</span>
-              <span class="mission-xp">+30 XP</span>
-            </div>
-            <div class="mission-item" data-mission="2">
-              <div class="mission-check"></div>
-              <span class="mission-text">Reach $1,500 net worth</span>
-              <span class="mission-xp">+50 XP</span>
-            </div>
-            <div class="mission-item" data-mission="3">
-              <div class="mission-check"></div>
-              <span class="mission-text">Trade all 4 stocks</span>
-              <span class="mission-xp">+40 XP</span>
-            </div>
-            <div class="mission-item" data-mission="4">
-              <div class="mission-check"></div>
-              <span class="mission-text">Reach $3,000 net worth</span>
-              <span class="mission-xp">+80 XP</span>
-            </div>
-            <div class="mission-item" data-mission="5">
-              <div class="mission-check"></div>
-              <span class="mission-text">Survive 60 seconds</span>
-              <span class="mission-xp">+60 XP</span>
-            </div>
-          </div>
-        </div>
-      </div>
+<div id="stockModal" class="smodal-overlay hidden">
+  <div class="smodal">
+    <button class="smod-close" onclick="closeStockModal()">x</button>
+    <div id="smodContent"></div>
+    <div class="smod-btns">
+      <button class="tbuy" onclick="openQTFromModal('BUY')">BUY</button>
+      <button class="tsell" onclick="openQTFromModal('SELL')">SELL</button>
     </div>
   </div>
+</div>
 
-  <!-- Game Over Screen -->
-  <div id="gameOverScreen" class="screen">
-    <div class="glow-background"></div>
-    <div class="ticker-tape"></div>
-    <div class="screen-content">
-      <div class="result-card">
-        <div class="result-icon" id="resultIcon">💸</div>
-        <h2 id="resultTitle">WIPED OUT</h2>
-        <p id="resultMessage">You didn't manage to grow your capital.</p>
+<!-- APP -->
+<div id="app" class="hidden">
+  <header class="app-header">
+    <span class="ah-logo">TradeSphere</span>
+    <div class="ah-nepse">
+      <span class="nepse-lbl">NEPSE</span>
+      <span id="hNepse" class="nepse-val">2,387</span>
+      <span id="hNepseChg" class="nepse-chg up">+0.52%</span>
+      <span id="dataBadge" class="data-badge sim">Sim</span>
+      <span id="mktStatusBadge" class="mkt-badge closed">Closed</span>
+    </div>
+    <div class="user-chip">
+      <span id="hLevel" class="chip-lv">L1</span>
+      <span id="hName" class="chip-nm">Trader</span>
+    </div>
+  </header>
 
-        <div class="result-stats">
-          <div class="stat-cell">
-            <span class="stat-label">Net Worth</span>
-            <span class="stat-value" id="statNetWorth">$1,000.00</span>
+  <main class="screen-area">
+    <!-- HOME -->
+    <div id="homeScreen" class="screen active">
+      <!-- Market Status Banner -->
+      <div id="mktStatusBar" class="mkt-status-bar closed">
+        <div class="msb-left">
+          <span id="mktStatusDot" class="msb-dot"></span>
+          <span id="mktStatusText">Market Closed</span>
+        </div>
+        <div id="mktStatusSub" class="msb-sub">Opens Sunday 11:00 AM NPT</div>
+        <div class="msb-time" id="nepalTime">--:-- NPT</div>
+      </div>
+
+      <div class="nepse-card">
+        <div class="nc-top">
+          <div>
+            <div class="nc-lbl">NEPSE Index</div>
+            <div id="ncVal" class="nc-val">2,387.45</div>
+            <div id="ncChg" class="nc-chg up">+12.30 (+0.52%)</div>
           </div>
-          <div class="stat-cell">
-            <span class="stat-label">Profit/Loss</span>
-            <span class="stat-value" id="statProfitLoss">$0.00</span>
-          </div>
-          <div class="stat-cell">
-            <span class="stat-label">Level</span>
-            <span class="stat-value" id="statLevel">1</span>
-          </div>
-          <div class="stat-cell">
-            <span class="stat-label">XP Earned</span>
-            <span class="stat-value" id="statXP">0</span>
+          <div class="nc-badges">
+            <span id="ncVol" class="nc-badge">Vol: 4.2M</span>
+            <span id="ncTrans" class="nc-badge">Trans: 28K</span>
+            <span id="mktTimeBadge" class="nc-badge mkt-time-badge">11:00–15:00</span>
           </div>
         </div>
-
-        <button id="newSessionBtn" class="btn-primary">New Session</button>
+        <canvas id="nepseChart" height="70"></canvas>
+      </div>
+      <div class="qa-grid">
+        <button class="qa-btn" onclick="switchTab('markets')">Markets</button>
+        <button class="qa-btn" onclick="switchTab('trade')">Paper Trade</button>
+        <button class="qa-btn" onclick="switchTab('portfolio')">Portfolio</button>
+        <button class="qa-btn" onclick="switchTab('profile')">Profile</button>
+      </div>
+      <div class="section">
+        <div class="sec-head"><span>My Portfolio</span><button class="see-all" onclick="switchTab('portfolio')">View All</button></div>
+        <div class="mini-pf">
+          <div class="mpf-stats">
+            <div><div class="mpf-lbl">Live Account</div><div id="miniLT" class="mpf-val accent">NPR 5,00,000</div></div>
+            <div><div class="mpf-lbl">Quick Trade</div><div id="miniQT" class="mpf-val">NPR 1,00,000</div></div>
+          </div>
+          <canvas id="miniPfChart" height="45"></canvas>
+        </div>
+      </div>
+      <div class="section">
+        <div class="sec-head"><span>Top Movers</span></div>
+        <div id="topMovers"></div>
+      </div>
+      <div class="section">
+        <div class="sec-head"><span>Market News</span></div>
+        <div id="newsList"></div>
       </div>
     </div>
-  </div>
 
-  <!-- Level Up Overlay -->
-  <div id="levelUpOverlay" class="overlay hidden">
-    <div class="level-up-card">
-      <div class="level-up-ring" id="levelUpRing">
-        <span id="levelUpNumber">2</span>
+    <!-- MARKETS -->
+    <div id="marketsScreen" class="screen">
+      <input type="text" class="mkt-search" id="mktSearch" placeholder="Search stocks..." oninput="filterStocks()">
+      <div class="stabs">
+        <button class="stab active" onclick="filterBySector('all',this)">All</button>
+        <button class="stab" onclick="filterBySector('Banking',this)">Banking</button>
+        <button class="stab" onclick="filterBySector('Hydropower',this)">Hydro</button>
+        <button class="stab" onclick="filterBySector('Insurance',this)">Insurance</button>
+        <button class="stab" onclick="filterBySector('Others',this)">Others</button>
       </div>
-      <h2>LEVEL UP!</h2>
-      <button id="continueBtn" class="btn-secondary">Continue Trading</button>
+      <div class="mkt-head"><span>Symbol</span><span>LTP</span><span>Change</span></div>
+      <div id="stocksList"></div>
     </div>
-  </div>
 
-  <script src="script.js"></script>
+    <!-- TRADE -->
+    <div id="tradeScreen" class="screen">
+      <div class="trade-tabs">
+        <button class="tt active" id="tab-paper" onclick="setTradeTab('paper')">Paper Trade</button>
+        <button class="tt" id="tab-live" onclick="setTradeTab('live')">Live Trade</button>
+      </div>
+      <!-- PAPER -->
+      <div id="paperMode">
+        <div class="trade-hdr"><h2>Paper Trade</h2><p>Risk-free 90s NEPSE challenge</p></div>
+        <div id="paperStart" class="paper-start">
+          <div class="ps-ico">🎮</div>
+          <h3 class="ps-title">90-Second Challenge</h3>
+          <p class="ps-desc">Trade 6 NEPSE stocks. Start NPR 1,00,000. Target NPR 2,00,000!</p>
+          <div class="ps-rules">
+            <div class="ps-rule">90 second session</div><div class="ps-rule">6 NEPSE stocks</div>
+            <div class="ps-rule">NPR 1,00,000 capital</div><div class="ps-rule">Target NPR 2,00,000</div>
+          </div>
+          <button id="startPaperBtn" class="btn-primary btn-lg" onclick="startPaperGame()">Start Trading</button>
+        </div>
+        <div id="paperGame" class="hidden">
+          <div class="pg-hud">
+            <div class="hud-block"><div class="hud-lbl">Net Worth</div><div id="pgNW" class="hud-val">NPR 1,00,000</div></div>
+            <div class="hud-block center"><div id="pgTimer" class="hud-timer">1:30</div><div class="hud-lbl">left</div></div>
+            <div class="hud-block right"><div class="hud-lbl">P&amp;L</div><div id="pgPnl" class="hud-val neutral">+0%</div></div>
+          </div>
+          <div class="pg-xp"><div class="xp-bar"><div id="pgXpFill" class="xp-fill" style="width:0%"></div></div><span id="pgXpText" class="xp-txt">0 XP</span></div>
+          <div class="pg-ticker"><span id="pgSentBadge" class="sent-badge">NEUTRAL</span><div class="ticker-scroll" id="tickerScroll"></div></div>
+          <div class="pg-chart-wrap">
+            <div class="chart-tabs" id="pgChartTabs"></div>
+            <canvas id="gameCanvas" height="90"></canvas>
+          </div>
+          <div class="cards-grid" id="pgCards"></div>
+          <div class="pg-bottom">
+            <div class="pgb"><div class="pgb-head">Event Log</div><div id="pgEventLog"></div></div>
+            <div class="pgb"><div class="pgb-head">Trade Log</div><div id="pgTradeLog"></div></div>
+            <div class="pgb"><div class="pgb-head">Missions</div><div id="pgMissions"></div></div>
+          </div>
+        </div>
+        <div id="paperResult" class="paper-result hidden">
+          <div id="prIco" class="pr-ico">🏆</div>
+          <div id="prTitle" class="pr-title">LEGEND</div>
+          <div id="prMsg" class="pr-msg">Outstanding!</div>
+          <div class="pr-stats">
+            <div class="pr-stat"><span id="prFinal">NPR 0</span><label>Final Worth</label></div>
+            <div class="pr-stat"><span id="prPnl">+0%</span><label>P&amp;L</label></div>
+            <div class="pr-stat"><span id="prTrades">0</span><label>Trades</label></div>
+            <div class="pr-stat"><span id="prXp">0 XP</span><label>XP Earned</label></div>
+          </div>
+          <button id="playAgainBtn" class="btn-primary btn-lg" onclick="resetPaperGame()" style="margin-top:14px">Play Again</button>
+        </div>
+      </div>
+      <!-- LIVE -->
+      <div id="liveMode" class="hidden">
+        <div class="lt-bal-row">
+          <div class="lt-bal-card">
+            <span class="lt-bal-lbl">Portfolio Value</span>
+            <div id="ltTotalVal" class="lt-bal-val">NPR 5,00,000</div>
+            <div id="ltTotalPnl" class="lt-bal-pnl neutral">+NPR 0</div>
+          </div>
+          <div class="lt-bal-card">
+            <span class="lt-bal-lbl">Available Cash</span>
+            <div id="ltCash" class="lt-bal-val accent">NPR 5,00,000</div>
+            <div class="lt-bal-lbl" style="margin-top:4px">Invested: <span id="ltInvested">NPR 0</span></div>
+          </div>
+        </div>
+        <div class="trade-box">
+          <div class="tb-head"><span class="tb-title">Place Order</span></div>
+          <select id="ltSelect" class="qt-sel" onchange="updateLTDisplay()"></select>
+          <div id="ltPriceCard" class="qt-price-card"></div>
+          <div class="order-type-tabs">
+            <button class="ot-btn active" onclick="setOrderType('market',this)">Market</button>
+            <button class="ot-btn" onclick="setOrderType('limit',this)">Limit</button>
+            <button class="ot-btn" onclick="setOrderType('stoploss',this)">Stop Loss</button>
+          </div>
+          <div id="ltMarketForm" class="order-form">
+            <div class="tb-controls">
+              <div class="qty-wrap"><span class="qty-lbl">QTY</span>
+                <div class="qty-ctrl">
+                  <button class="qty-btn" onclick="adjLTQty(-1,'M')">-</button>
+                  <input type="number" id="ltQtyM" value="1" min="1" class="qty-inp">
+                  <button class="qty-btn" onclick="adjLTQty(1,'M')">+</button>
+                </div>
+              </div>
+              <div class="trade-btns">
+                <button class="tbuy" onclick="placeLTOrder('BUY')">BUY</button>
+                <button class="tsell" onclick="placeLTOrder('SELL')">SELL</button>
+              </div>
+            </div>
+          </div>
+          <div id="ltLimitForm" class="order-form hidden">
+            <div class="price-inp-row">
+              <span class="qty-lbl">TARGET PRICE (NPR)</span>
+              <input type="number" id="ltLimitPrice" placeholder="e.g. 1020.00" class="price-inp-field" step="0.01">
+            </div>
+            <div class="tb-controls">
+              <div class="qty-wrap"><span class="qty-lbl">QTY</span>
+                <div class="qty-ctrl">
+                  <button class="qty-btn" onclick="adjLTQty(-1,'L')">-</button>
+                  <input type="number" id="ltQtyL" value="1" min="1" class="qty-inp">
+                  <button class="qty-btn" onclick="adjLTQty(1,'L')">+</button>
+                </div>
+              </div>
+              <div class="trade-btns">
+                <button class="tbuy" onclick="placeLTOrder('BUY')">BUY LIMIT</button>
+                <button class="tsell" onclick="placeLTOrder('SELL')">SELL LIMIT</button>
+              </div>
+            </div>
+            <div class="order-hint">Executes when price hits target</div>
+          </div>
+          <div id="ltStopForm" class="order-form hidden">
+            <div class="price-inp-row">
+              <span class="qty-lbl">STOP PRICE (NPR)</span>
+              <input type="number" id="ltStopPrice" placeholder="e.g. 980.00" class="price-inp-field" step="0.01">
+            </div>
+            <div class="tb-controls">
+              <div class="qty-wrap"><span class="qty-lbl">QTY</span>
+                <div class="qty-ctrl">
+                  <button class="qty-btn" onclick="adjLTQty(-1,'S')">-</button>
+                  <input type="number" id="ltQtyS" value="1" min="1" class="qty-inp">
+                  <button class="qty-btn" onclick="adjLTQty(1,'S')">+</button>
+                </div>
+              </div>
+              <div class="trade-btns">
+                <button class="tsell" style="flex:1" onclick="placeLTOrder('SELL')">SET STOP LOSS</button>
+              </div>
+            </div>
+            <div class="order-hint">Auto-sells if price drops to stop level</div>
+          </div>
+        </div>
+        <div class="open-orders-wrap">
+          <div class="oow-head"><h4>Open Orders</h4><span id="openOrderCount" class="ord-count" style="display:none"></span></div>
+          <div id="openOrdersList"><div class="empty-s">No pending orders</div></div>
+        </div>
+        <div class="lt-hold-wrap">
+          <h4 style="margin-bottom:10px">Live Holdings</h4>
+          <div id="ltHoldings"><div class="empty-s">No holdings yet</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PORTFOLIO -->
+    <div id="portfolioScreen" class="screen">
+      <div class="accs-row">
+        <div class="acc-card acc-live">
+          <span class="acc-lbl">Live Account</span>
+          <div id="ltAccVal" class="acc-val">NPR 5,00,000</div>
+          <div id="ltAccPnl" class="acc-pnl neutral">+NPR 0</div>
+          <div class="acc-sub">Cash: <span id="ltAccCash">NPR 5,00,000</span></div>
+        </div>
+        <div class="acc-card acc-qt">
+          <span class="acc-lbl">Quick Trade</span>
+          <div id="qtAccVal" class="acc-val">NPR 1,00,000</div>
+          <div id="qtAccPnl" class="acc-pnl neutral">+NPR 0</div>
+          <div class="acc-sub">Cash: <span id="qtAccCash">NPR 1,00,000</span></div>
+        </div>
+      </div>
+      <div class="pf-hero">
+        <span class="pfh-lbl">Combined Portfolio</span>
+        <div id="pfTotalVal" class="pfh-val">NPR 6,00,000</div>
+        <div id="pfTotalPnl" class="pfh-pnl neutral">+NPR 0 (0.00%)</div>
+        <canvas id="pfChart" height="50"></canvas>
+      </div>
+      <div class="trade-box">
+        <div class="tb-head">
+          <span class="tb-title">Quick Trade</span>
+          <span class="tb-cash">Cash: <strong id="qtCashShow">NPR 1,00,000</strong></span>
+        </div>
+        <div id="qtClosedNotice" class="qt-closed-notice hidden">
+          <span>Market Closed &mdash; Trading resumes Sunday 11:00 AM NPT</span>
+        </div>
+        <select id="qtSelect" class="qt-sel" onchange="updateQTDisplay()"></select>
+        <div id="qtCard" class="qt-price-card"></div>
+        <div class="tb-controls">
+          <div class="qty-wrap"><span class="qty-lbl">QTY</span>
+            <div class="qty-ctrl">
+              <button class="qty-btn" onclick="adjQTQty(-1)">-</button>
+              <input type="number" id="qtQtyInput" value="1" min="1" class="qty-inp">
+              <button class="qty-btn" onclick="adjQTQty(1)">+</button>
+            </div>
+          </div>
+          <div class="trade-btns">
+            <button class="tbuy" onclick="doQuickTrade('BUY')">BUY</button>
+            <button class="tsell" onclick="doQuickTrade('SELL')">SELL</button>
+          </div>
+        </div>
+      </div>
+      <div class="pf-tabs">
+        <button class="pft active" onclick="showPfTab('holdings',this)">Holdings</button>
+        <button class="pft" onclick="showPfTab('history',this)">History</button>
+        <button class="pft" onclick="showPfTab('leaderboard',this)">Leaders</button>
+      </div>
+      <div id="pfHoldings" class="pf-panel"><div id="holdingsList"></div></div>
+      <div id="pfHistory" class="pf-panel hidden"><div id="fullHistory"></div></div>
+      <div id="pfLeaderboard" class="pf-panel hidden"><div id="lbList"></div></div>
+    </div>
+
+    <!-- TRADE CLOSED BANNER (shown in live mode when market closed) -->
+    <!-- embedded inside tradeScreen via JS -->
+
+    <!-- PROFILE -->
+    <div id="profileScreen" class="screen">
+      <div class="profile-hero">
+        <div id="profileAvatar" class="avatar">T</div>
+        <h2 id="profileName">Trader</h2>
+        <div id="profileBadge" class="profile-badge">Level 1 - Beginner</div>
+        <div class="xp-row">
+          <div class="xp-bar"><div id="profileXpFill" class="xp-fill"></div></div>
+          <span id="profileXpText" class="xp-txt">0 / 100 XP</span>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card"><strong id="psTrades">0</strong><span>Total Trades</span></div>
+        <div class="stat-card"><strong id="psBest">0</strong><span>Best Session</span></div>
+        <div class="stat-card"><strong id="psStreak">0</strong><span>Day Streak</span></div>
+        <div class="stat-card"><strong id="psLevel">1</strong><span>Level</span></div>
+      </div>
+      <div class="section">
+        <div class="sec-head"><span>Achievements</span></div>
+        <div class="achieve-grid" id="achieveGrid"></div>
+      </div>
+      <div class="section">
+        <div class="sec-head"><span>Session History</span></div>
+        <div id="sessionList"></div>
+      </div>
+
+      <!-- Account Actions -->
+      <div class="acc-actions">
+        <button class="delete-acc-btn" onclick="deleteAccount()">🗑️ Delete Account &amp; Reset</button>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="bnav active" onclick="switchTab('home')" id="bnav-home">
+      <span class="bni">🏠</span><span>Home</span>
+    </button>
+    <button class="bnav" onclick="switchTab('markets')" id="bnav-markets">
+      <span class="bni">📊</span><span>Markets</span>
+    </button>
+    <button class="bnav-ctr" onclick="switchTab('trade')" id="bnav-trade">
+      <span class="bni-ctr">⚡</span>
+    </button>
+    <button class="bnav" onclick="switchTab('portfolio')" id="bnav-portfolio">
+      <span class="bni">💼</span><span>Portfolio</span>
+    </button>
+    <button class="bnav" onclick="switchTab('profile')" id="bnav-profile">
+      <span class="bni">👤</span><span>Profile</span>
+    </button>
+  </nav>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>
