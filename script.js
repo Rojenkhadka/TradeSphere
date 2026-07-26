@@ -1,5 +1,14 @@
 ﻿const STOCKS={NABIL:{name:"Nabil Bank",sector:"Banking",price:1024.50,vol:.025,color:"#4AFFCE"},NICA:{name:"NIC Asia Bank",sector:"Banking",price:852.30,vol:.028,color:"#00D4FF"},GBIME:{name:"Global IME Bank",sector:"Banking",price:245.60,vol:.032,color:"#FF6B9D"},SCB:{name:"Standard Chartered",sector:"Banking",price:5240.00,vol:.018,color:"#FFB547"},CBL:{name:"Civil Bank",sector:"Banking",price:198.40,vol:.035,color:"#7C3AED"},KBL:{name:"Kumari Bank",sector:"Banking",price:212.80,vol:.030,color:"#06B6D4"},SBL:{name:"Sunrise Bank",sector:"Banking",price:187.50,vol:.033,color:"#F59E0B"},ADBL:{name:"Agri Dev Bank",sector:"Banking",price:345.20,vol:.027,color:"#10B981"},UPPER:{name:"Upper Tamakoshi",sector:"Hydropower",price:304.50,vol:.040,color:"#3B82F6"},CHCL:{name:"Chilime Hydro",sector:"Hydropower",price:612.30,vol:.035,color:"#06D6A0"},NHPC:{name:"National Hydro",sector:"Hydropower",price:98.60,vol:.045,color:"#60A5FA"},HPPL:{name:"Himalayan Power",sector:"Hydropower",price:143.20,vol:.042,color:"#34D399"},UMHL:{name:"United Modi Hydro",sector:"Hydropower",price:245.80,vol:.038,color:"#4ADE80"},LICN:{name:"Life Insurance Nepal",sector:"Insurance",price:8540.00,vol:.020,color:"#A78BFA"},PRIN:{name:"Prudential Insurance",sector:"Insurance",price:1230.50,vol:.025,color:"#F472B6"},NLIC:{name:"Nepal Life Insurance",sector:"Insurance",price:2450.00,vol:.022,color:"#FB7185"},NTC:{name:"Nepal Telecom",sector:"Others",price:782.40,vol:.022,color:"#FCD34D"},NRIC:{name:"Nepal Reinsurance",sector:"Others",price:1562.80,vol:.024,color:"#A3E635"},SHL:{name:"Soaltee Hotel",sector:"Others",price:115.20,vol:.038,color:"#FB923C"},BNL:{name:"Bottlers Nepal",sector:"Others",price:9450.00,vol:.015,color:"#38BDF8"}};
 const GAME_TICKERS=["NABIL","NICA","UPPER","CHCL","NTC","GBIME"];
+const ICONS={
+  lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 5-5"/></svg>',
+  Trophy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3"/><path d="M12 13v3M9 20h6M10 20v-2.5M14 20v-2.5"/></svg>',
+  Diamond:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9 9 4h6l3 5-6 11L6 9Z"/><path d="M6 9h12M9 4l1.5 5L12 20l1.5-11L15 4"/></svg>',
+  Chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17 9.5 10l4 3L20 5"/><path d="M14.5 5H20v5.5"/></svg>',
+  Ok:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M7 21h10M5 7h14"/><path d="M5 7 2.5 12.5a2.5 2.5 0 0 0 5 0L5 7ZM19 7l-2.5 5.5a2.5 2.5 0 0 0 5 0L19 7Z"/></svg>',
+  Cash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l6 7 4-3 6 8"/><path d="M20 12v6h-6"/></svg>'
+};
 const XP_THRESH=[0,100,250,450,700,1000,1400,2000];
 const LVL_TITLES=["Beginner","Learner","Trader","Senior Trader","Expert Trader","Master Trader","Legend","GOAT"];
 const NEWS=["NEPSE closes above 2,400 for first time this quarter.","NRB to review monetary policy next week.","Hydropower stocks surge on India power export deal.","Banking sector sees rise in Q4 net interest margins.","NABIL opens new branches across 10 provinces.","Nepal GDP growth projected at 5.8% for fiscal year.","SEBON tightens margin trading regulations.","NTC dividend yield attracts institutional investors.","FPO of Upper Tamakoshi oversubscribed by 4x.","NEPSE introduces T+2 settlement for equity trades."];
@@ -224,7 +233,10 @@ function launchApp(){
   setTimeout(()=>{buildNepseChart();buildMiniPfChart();buildPfChart();},100);
   fetchLiveNEPSE();
   if(liveDataTimer)clearInterval(liveDataTimer);
-  liveDataTimer=setInterval(fetchLiveNEPSE,60000);
+  // Real NEPSE prices don't move outside trading hours, so only keep re-polling
+  // while the market is open; the initial fetch above still shows the real
+  // last-known price immediately even when the market is closed.
+  liveDataTimer=setInterval(()=>{if(isMarketOpen())fetchLiveNEPSE();},60000);
 }
 function checkDailyStreak(){const today=new Date().toDateString(),last=localStorage.getItem("ts_last_login"),yesterday=new Date(Date.now()-86400000).toDateString();if(last===today)return;if(last===yesterday)streak++;else streak=1;localStorage.setItem("ts_last_login",today);if(streak>1)setTimeout(()=>toast(streak+"-day streak!","warning"),800);}
 function updateHeader(){document.getElementById("hName").textContent=playerName||"Trader";document.getElementById("hLevel").textContent="L"+appLevel;const ni=nepseVal.toFixed(2),base=nepseOpen,chg=((nepseVal-base)/base*100).toFixed(2);document.getElementById("hNepse").textContent=Math.round(nepseVal).toLocaleString();const hc=document.getElementById("hNepseChg");hc.textContent=(chg>=0?"+":"")+chg+"%";hc.className="nepse-chg "+(chg>=0?"up":"down");updateMarketStatus();}
@@ -263,7 +275,7 @@ function renderStocksList(){
 function filterStocks(){renderStocksList();}
 function filterBySector(sec,btn){activeSector=sec;document.querySelectorAll(".stab").forEach(b=>b.classList.remove("active"));if(btn)btn.classList.add("active");renderStocksList();}
 
-function openStockModal(t){modalTicker=t;const s=STOCKS[t],p=prices[t],chg=((p-prevPrices[t])/prevPrices[t]*100).toFixed(2);document.getElementById("smodContent").innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px"><div><div style="font-size:18px;font-weight:800;color:${s.color}">${t}</div><div style="font-size:12px;color:var(--text2)">${s.name} - ${s.sector}</div></div><div style="text-align:right"><div style="font-family:var(--fm);font-size:22px;font-weight:800">NPR ${fmtNPR(p)}</div><div class="${chg>=0?"up":"down"}" style="font-family:var(--fm);font-size:12px">${chg>=0?"+":""}${chg}%</div></div></div>`;document.getElementById("stockModal").classList.remove("hidden");}
+function openStockModal(t){modalTicker=t;const s=STOCKS[t],p=prices[t],chg=((p-prevPrices[t])/prevPrices[t]*100).toFixed(2);document.getElementById("smodContent").innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding-right:32px;margin-bottom:12px"><div><div style="font-size:18px;font-weight:800;color:${s.color}">${t}</div><div style="font-size:12px;color:var(--text2)">${s.name} - ${s.sector}</div></div><div style="text-align:right"><div style="font-family:var(--fm);font-size:22px;font-weight:800">NPR ${fmtNPR(p)}</div><div class="${chg>=0?"up":"down"}" style="font-family:var(--fm);font-size:12px">${chg>=0?"+":""}${chg}%</div></div></div>`;document.getElementById("stockModal").classList.remove("hidden");}
 function closeStockModal(){document.getElementById("stockModal").classList.add("hidden");}
 function openQTFromModal(side){closeStockModal();switchTab("portfolio");if(modalTicker){document.getElementById("qtSelect").value=modalTicker;updateQTDisplay();}if(side==="BUY")doQuickTrade("BUY");else doQuickTrade("SELL");}
 
@@ -314,7 +326,7 @@ function setTradeTab(tab){
       const banner=document.createElement("div");
       banner.id="tradeClosedBanner";
       banner.className="trade-closed-banner";
-      banner.innerHTML=`<div class="tcb-ico">🔒</div><div class="tcb-title">Market is ${s.label}</div><div class="tcb-sub">${s.sub}<br>Live trading is only available during market hours.</div><div class="tcb-hours"><div class="tcb-hour"><strong>Sun–Thu</strong>Trading Days</div><div class="tcb-hour"><strong>11:00–15:00</strong>Market Hours NPT</div></div>`;
+      banner.innerHTML=`<div class="tcb-ico">${ICONS.lock}</div><div class="tcb-title">Market is ${s.label}</div><div class="tcb-sub">${s.sub}<br>Live trading is only available during market hours.</div><div class="tcb-hours"><div class="tcb-hour"><strong>Sun–Thu</strong>Trading Days</div><div class="tcb-hour"><strong>11:00–15:00</strong>Market Hours NPT</div></div>`;
       lm.insertBefore(banner,lm.firstChild);
     }
   }
@@ -335,6 +347,18 @@ function updateOpenOrders(){const open=LT_ORDERS.filter(o=>o.status==="OPEN");co
 function updateLTHoldings(){const held=Object.keys(LT_HOLDINGS).filter(t=>LT_HOLDINGS[t]>0);const el=document.getElementById("ltHoldings");if(!el)return;if(!held.length){el.innerHTML="<div class='empty-s'>No holdings yet</div>";return;}el.innerHTML=held.map(t=>{const s=STOCKS[t],p=prices[t],sh=LT_HOLDINGS[t],avg=LT_AVG[t]||p,val=sh*p,pnl=(p-avg)*sh,pc=((p-avg)/avg*100).toFixed(2);return `<div class="holding-item"><div class="hi-l"><div class="hi-ico" style="color:${s.color};border-color:${s.color}">${t[0]}</div><div><div class="hi-sym">${t}</div><div class="hi-sub">${sh} sh Avg NPR ${fmtNPR(avg)}</div><div class="hi-pnl ${pnl>=0?"up":"down"}">${pnl>=0?"+":"-"}NPR ${fmtNPR(Math.abs(pnl))} (${pnl>=0?"+":""}${pc}%)</div></div></div><div class="hi-r"><div class="hi-val">NPR ${fmtNPR(val)}</div><button class="sell-btn" onclick="executeLTTrade('${t}','SELL',1,prices['${t}'])">SELL</button></div></div>`;}).join("");}
 
 // PAPER GAME
+function buildPGMissions(){
+  const lvl=appLevel-1; // scale off levels gained, so a fresh Level 1 player still gets the base set
+  const fiveReq=5+lvl*2,tenReq=10+lvl*4,profitReq=110000+lvl*10000,bigwinReq=150000+lvl*20000,diversifyReq=Math.min(6,3+Math.floor(lvl/2));
+  return[
+    {id:"first",text:"First Trade",done:false,req:1,curr:0},
+    {id:"five",text:fiveReq+" Trades",done:false,req:fiveReq,curr:0},
+    {id:"ten",text:tenReq+" Trades",done:false,req:tenReq,curr:0},
+    {id:"profit",text:"Reach "+fmtNPR(profitReq),done:false,req:profitReq,curr:0},
+    {id:"bigwin",text:"Reach "+fmtNPR(bigwinReq),done:false,req:bigwinReq,curr:0},
+    {id:"diversify",text:"Own "+diversifyReq+" Stocks",done:false,req:diversifyReq,curr:0}
+  ];
+}
 function resetPaperGame(){document.getElementById("paperGame").classList.add("hidden");document.getElementById("paperResult").classList.add("hidden");document.getElementById("paperStart").classList.remove("hidden");gameEnded=false;}
 function startPaperGame(){
   if(gameTimer)clearInterval(gameTimer);
@@ -345,7 +369,7 @@ function startPaperGame(){
   gameEnded=false;
   // Seed priceHist for game tickers with at least 2 points so chart renders
   GAME_TICKERS.forEach(tk=>{ if(priceHist[tk].length<2) priceHist[tk].push(prices[tk]); });
-  PG={cash:100000,holdings:{},avg:{},trades:0,xp:0,history:[],missions:[{id:"first",text:"First Trade",done:false,req:1,curr:0},{id:"five",text:"5 Trades",done:false,req:5,curr:0},{id:"profit",text:"Reach 1.1L",done:false,req:110000,curr:0}]};
+  PG={cash:100000,holdings:{},avg:{},trades:0,xp:0,history:[],missions:buildPGMissions()};
   let t=90;
   buildGameCards();buildMissions();
   gameTimer=setInterval(()=>{
@@ -365,7 +389,7 @@ function startPaperGame(){
   },1000);
 }
 function pgNW(){let w=PG.cash;for(const k in PG.holdings)w+=(PG.holdings[k]||0)*(prices[k]||STOCKS[k].price);return w;}
-function buildGameCards(){const ct=document.getElementById("pgChartTabs");if(ct)ct.innerHTML=GAME_TICKERS.map(t=>`<button class="ctab${t===pgChartActive?" active":""}" onclick="pgSetChart('${t}')">${t}</button>`).join("");document.getElementById("pgCards").innerHTML=GAME_TICKERS.map(t=>{const s=STOCKS[t],p=prices[t],chg=((p-prevPrices[t])/prevPrices[t]*100).toFixed(2),owned=PG.holdings[t]||0;return `<div class="game-card" id="gc-${t}"><div class="gc-head"><span class="gc-sym" style="color:${s.color}">${t}</span><span class="gc-chg ${chg>=0?"up":"down"}">${chg>=0?"+":""}${chg}%</span></div><div class="gc-pr">NPR ${fmtNPR(p)}</div><div class="gc-owned">${owned>0?"Owned: "+owned:"-"}</div><div class="gc-qty"><button class="gc-qty-btn" onclick="setPGQty('${t}',-1)">-</button><input id="gq-${t}" type="number" value="1" min="1" class="gc-qty-inp"><button class="gc-qty-btn" onclick="setPGQty('${t}',1)">+</button></div><div class="gc-btns"><button class="tbuy" style="flex:1;padding:7px;font-size:12px" onclick="pgTrade('${t}','BUY')">BUY</button><button class="tsell" style="flex:1;padding:7px;font-size:12px" onclick="pgTrade('${t}','SELL')">SELL</button></div></div>`;}).join("");buildGameChart();}
+function buildGameCards(){const ct=document.getElementById("pgChartTabs");if(ct)ct.innerHTML=GAME_TICKERS.map(t=>`<button class="ctab${t===pgChartActive?" active":""}" onclick="pgSetChart('${t}')">${t}</button>`).join("");document.getElementById("pgCards").innerHTML=GAME_TICKERS.map(t=>{const s=STOCKS[t],p=prices[t],chg=((p-prevPrices[t])/prevPrices[t]*100).toFixed(2),owned=PG.holdings[t]||0,defQty=Math.max(1,Math.floor(12000/p));return `<div class="game-card" id="gc-${t}"><div class="gc-head"><span class="gc-sym" style="color:${s.color}">${t}</span><span class="gc-chg ${chg>=0?"up":"down"}">${chg>=0?"+":""}${chg}%</span></div><div class="gc-pr">NPR ${fmtNPR(p)}</div><div class="gc-owned">${owned>0?"Owned: "+owned:"-"}</div><div class="gc-qty"><button class="gc-qty-btn" onclick="setPGQty('${t}',-1)">-</button><input id="gq-${t}" type="number" value="${defQty}" min="1" class="gc-qty-inp"><button class="gc-qty-btn" onclick="setPGQty('${t}',1)">+</button></div><div class="gc-btns"><button class="tbuy" style="flex:1;padding:7px;font-size:12px" onclick="pgTrade('${t}','BUY')">BUY</button><button class="tsell" style="flex:1;padding:7px;font-size:12px" onclick="pgTrade('${t}','SELL')">SELL</button></div></div>`;}).join("");buildGameChart();}
 function pgSetChart(t){
   pgChartActive=t;
   document.querySelectorAll(".ctab").forEach(b=>b.classList.remove("active"));
@@ -374,10 +398,11 @@ function pgSetChart(t){
 }
 function setPGQty(t,d){const i=document.getElementById("gq-"+t);if(i)i.value=Math.max(1,parseInt(i.value||1)+d);}
 function updateGameCards(){GAME_TICKERS.forEach(t=>{const card=document.getElementById("gc-"+t);if(!card)return;const p=prices[t],chg=((p-prevPrices[t])/prevPrices[t]*100).toFixed(2);const pr=card.querySelector(".gc-pr");if(pr)pr.textContent="NPR "+fmtNPR(p);const ch=card.querySelector(".gc-chg");if(ch){ch.textContent=(chg>=0?"+":"")+chg+"%";ch.className="gc-chg "+(chg>=0?"up":"down");}const ow=card.querySelector(".gc-owned");if(ow)ow.textContent=(PG.holdings[t]||0)>0?"Owned: "+(PG.holdings[t]):"-";});}
-function pgTrade(t,side){if(gameEnded)return;const qty=parseInt(document.getElementById("gq-"+t)?.value||1)||1,p=prices[t];if(side==="BUY"){const cost=p*qty;if(PG.cash<cost){toast("Not enough cash!","red");return;}const prev=(PG.avg[t]||0)*(PG.holdings[t]||0);PG.cash-=cost;PG.holdings[t]=(PG.holdings[t]||0)+qty;PG.avg[t]=PG.holdings[t]>0?(prev+cost)/PG.holdings[t]:0;}else{const held=PG.holdings[t]||0,aq=Math.min(qty,held);if(aq<1){toast("No shares!","red");return;}PG.cash+=p*aq;PG.holdings[t]-=aq;if(PG.holdings[t]===0){delete PG.holdings[t];delete PG.avg[t];}}PG.trades++;PG.xp+=3;appXP+=3;checkAppLevelUp();PG.history.unshift({t,side,qty,p});playSound(side==="BUY"?'buy':'sell');const tl=document.getElementById("pgTradeLog");if(tl)tl.innerHTML=PG.history.slice(0,8).map(h=>`<div class="tli ${h.side.toLowerCase()}">${h.side} ${h.t} ${h.qty}x @ ${fmtNPR(h.p)}</div>`).join("");updateGameHUD();updateMissionProgress();toast((side==="BUY"?"Bought ":"Sold ")+qty+"x "+t,(side==="BUY"?"green":"warning"));}
-function updateGameHUD(){const nw=pgNW(),pct=((nw-100000)/100000*100).toFixed(1);document.getElementById("pgNW").textContent="NPR "+fmtNPR(nw);const pp=document.getElementById("pgPnl");pp.textContent=(pct>=0?"+":"")+pct+"%";pp.className="hud-val "+(pct>=0?"up":"down");const lvl=appLevel-1,xpMin=XP_THRESH[lvl]||0,xpMax=XP_THRESH[lvl+1]||xpMin+100,xpPct=Math.min(100,((appXP-xpMin)/(xpMax-xpMin))*100);document.getElementById("pgXpFill").style.width=xpPct+"%";document.getElementById("pgXpText").textContent=appXP+" XP";document.getElementById("pgSentBadge").textContent=pct>3?"BULL":pct<-3?"BEAR":"NEUTRAL";}
+const PG_FEE_RATE=0.004; // ~NEPSE-style brokerage commission, so every trade has a real cost
+function pgTrade(t,side){if(gameEnded)return;const qty=parseInt(document.getElementById("gq-"+t)?.value||1)||1,p=prices[t];if(side==="BUY"){const gross=p*qty,fee=gross*PG_FEE_RATE,cost=gross+fee;if(PG.cash<cost){toast("Not enough cash!","red");return;}const prev=(PG.avg[t]||0)*(PG.holdings[t]||0);PG.cash-=cost;PG.holdings[t]=(PG.holdings[t]||0)+qty;PG.avg[t]=PG.holdings[t]>0?(prev+cost)/PG.holdings[t]:0;}else{const held=PG.holdings[t]||0,aq=Math.min(qty,held);if(aq<1){toast("No shares!","red");return;}const gross=p*aq,fee=gross*PG_FEE_RATE;PG.cash+=gross-fee;PG.holdings[t]-=aq;if(PG.holdings[t]===0){delete PG.holdings[t];delete PG.avg[t];}}PG.trades++;PG.xp+=3;appXP+=3;checkAppLevelUp();PG.history.unshift({t,side,qty,p});playSound(side==="BUY"?'buy':'sell');const tl=document.getElementById("pgTradeLog");if(tl)tl.innerHTML=PG.history.slice(0,8).map(h=>`<div class="tli ${h.side.toLowerCase()}">${h.side} ${h.t} ${h.qty}x @ ${fmtNPR(h.p)}</div>`).join("");updateGameHUD();updateMissionProgress();toast((side==="BUY"?"Bought ":"Sold ")+qty+"x "+t,(side==="BUY"?"green":"warning"));}
+function updateGameHUD(){const nw=pgNW(),pct=((nw-100000)/100000*100).toFixed(1);document.getElementById("pgNW").textContent="NPR "+nw.toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});document.getElementById("pgCash").textContent="Cash NPR "+PG.cash.toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});const pp=document.getElementById("pgPnl");pp.textContent=(pct>=0?"+":"")+pct+"%";pp.className="hud-val "+(pct>=0?"up":"down");const lvl=appLevel-1,xpMin=XP_THRESH[lvl]||0,xpMax=XP_THRESH[lvl+1]||xpMin+100,xpPct=Math.min(100,((appXP-xpMin)/(xpMax-xpMin))*100);document.getElementById("pgXpFill").style.width=xpPct+"%";document.getElementById("pgXpText").textContent=appXP+" XP";document.getElementById("pgSentBadge").textContent=pct>3?"BULL":pct<-3?"BEAR":"NEUTRAL";}
 function buildMissions(){const el=document.getElementById("pgMissions");if(el)el.innerHTML=PG.missions.map(m=>`<div class="mi-item">${m.done?"[x]":"[ ]"} ${m.text}</div>`).join("");}
-function updateMissionProgress(){PG.missions.forEach(m=>{if(m.done)return;if(m.id==="first"||m.id==="five")m.curr=PG.trades;if(m.id==="profit")m.curr=pgNW();if(m.curr>=m.req){m.done=true;PG.xp+=20;appXP+=20;playSound('mission');toast("Mission done: "+m.text,"warning");}});buildMissions();}
+function updateMissionProgress(){PG.missions.forEach(m=>{if(m.done)return;if(m.id==="first"||m.id==="five"||m.id==="ten")m.curr=PG.trades;else if(m.id==="profit"||m.id==="bigwin")m.curr=pgNW();else if(m.id==="diversify")m.curr=Object.keys(PG.holdings).length;if(m.curr>=m.req){m.done=true;PG.xp+=20;appXP+=20;playSound('mission');toast("Mission done: "+m.text,"warning");}});buildMissions();}
 function endPaperGame(){gameEnded=true;const nw=pgNW(),pnl=nw-100000,pct=((pnl/100000)*100).toFixed(1);
   document.getElementById("paperGame").classList.add("hidden");
   document.getElementById("paperResult").classList.remove("hidden");
@@ -385,7 +410,7 @@ function endPaperGame(){gameEnded=true;const nw=pgNW(),pnl=nw-100000,pct=((pnl/1
   const tier=tiers.find(t=>nw>=t.min)||tiers[4];
   const profitable=nw>=100000;
   playSound(nw>=120000?'win':'lose');
-  document.getElementById("prIco").textContent=nw>=200000?"🏆":nw>=150000?"💎":nw>=120000?"📈":nw>=100000?"🤝":"💸";
+  document.getElementById("prIco").innerHTML=ICONS[tier.ico];
   document.getElementById("prTitle").textContent=tier.title;
   document.getElementById("prMsg").textContent=pct>0?"You made NPR "+fmtNPR(pnl)+" profit!":"Better luck next time!";
   document.getElementById("prFinal").textContent="NPR "+fmtNPR(nw);
@@ -401,7 +426,7 @@ function endPaperGame(){gameEnded=true;const nw=pgNW(),pnl=nw-100000,pct=((pnl/1
 // PROFILE
 function updateProfileData(){document.getElementById("profileAvatar").textContent=(playerName||"T")[0].toUpperCase();document.getElementById("profileName").textContent=playerName||"Trader";document.getElementById("profileBadge").textContent="Level "+appLevel+" - "+(LVL_TITLES[appLevel-1]||"Trader");const lvl=appLevel-1,xpMin=XP_THRESH[lvl]||0,xpMax=XP_THRESH[lvl+1]||xpMin+100,xpPct=Math.min(100,((appXP-xpMin)/(xpMax-xpMin))*100);document.getElementById("profileXpFill").style.width=xpPct+"%";document.getElementById("profileXpText").textContent=appXP+" / "+xpMax+" XP";document.getElementById("psTrades").textContent=totalTrades;document.getElementById("psBest").textContent=bestSession>0?"NPR "+fmtNPR(bestSession):"--";document.getElementById("psStreak").textContent=streak+" days";document.getElementById("psLevel").textContent=appLevel;renderAchievements();renderSessionHistory();}
 const ACHIEVEMENTS=[{id:"first",ico:"Medal",name:"First Trade",desc:"Make your first trade",check:()=>totalTrades>=1},{id:"ten",ico:"10",name:"10 Trades",desc:"Complete 10 trades",check:()=>totalTrades>=10},{id:"lv2",ico:"Star",name:"Level Up",desc:"Reach Level 2",check:()=>appLevel>=2},{id:"profit",ico:"Money",name:"Profitable",desc:"End session in profit",check:()=>bestSession>100000},{id:"streak",ico:"Fire",name:"3-Day Streak",desc:"Login 3 days in a row",check:()=>streak>=3},{id:"lt5",ico:"Radar",name:"Live Trader",desc:"Make 5 live trades",check:()=>LT_HISTORY.length>=5}];
-function renderAchievements(){document.getElementById("achieveGrid").innerHTML=ACHIEVEMENTS.map(a=>{const u=a.check();return `<div class="ach-card ${u?"unlocked":""}"><span class="ach-ico">${u?"✅":"🔒"}</span><div><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div></div>`;}).join("");}
+function renderAchievements(){document.getElementById("achieveGrid").innerHTML=ACHIEVEMENTS.map(a=>{const u=a.check();return `<div class="ach-card ${u?"unlocked":""}"><span class="ach-ico">${u?ICONS.check:ICONS.lock}</span><div><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div></div>`;}).join("");}
 function renderSessionHistory(){const el=document.getElementById("sessionList");if(!el)return;if(!sessionHistory.length){el.innerHTML="<div class='empty-s'>No sessions yet</div>";return;}el.innerHTML=sessionHistory.slice(0,10).map(s=>`<div class="si"><div><div class="si-val ${s.pct>=0?"up":"down"}">${s.pct>=0?"+":""}${s.pct}%</div><div style="font-size:11px;color:var(--muted)">${s.trades} trades</div></div><div style="text-align:right"><div style="font-family:var(--fm);font-size:13px">NPR ${fmtNPR(s.worth)}</div><div class="si-date">${s.date}</div></div></div>`).join("");}
 function checkAppLevelUp(){const next=XP_THRESH[appLevel];if(!next||appXP<next)return;appLevel++;playSound('levelup');const ol=document.getElementById("lvlOverlay");if(ol)ol.classList.remove("hidden");document.getElementById("lvlNum").textContent=appLevel;document.getElementById("lvlTitle").textContent=LVL_TITLES[appLevel-1]||"";toast("Level Up! Now Level "+appLevel,"warning");}
 
@@ -418,11 +443,9 @@ function updateGameChart(){if(gameChart){const h=priceHist[pgChartActive]||[];ga
 function toast(msg,cls="green"){const w=document.getElementById("toastWrap");if(!w)return;const el=document.createElement("div");el.className="toast "+cls;el.textContent=msg;w.appendChild(el);setTimeout(()=>el.remove(),2800);}
 
 // ===== DELETE ACCOUNT =====
-function deleteAccount(){
-  const confirmed=confirm("Are you sure you want to delete your account?\nAll your data, balance, trades, and progress will be permanently erased.");
-  if(!confirmed)return;
-  const confirmed2=confirm("This cannot be undone. Delete account?");
-  if(!confirmed2)return;
+function deleteAccount(){document.getElementById("deleteConfirmOverlay").classList.remove("hidden");}
+function closeDeleteConfirm(){document.getElementById("deleteConfirmOverlay").classList.add("hidden");}
+function confirmDeleteAccount(){
   localStorage.clear();
   toast("Account deleted. Restarting...","warning");
   setTimeout(()=>location.reload(),1200);
