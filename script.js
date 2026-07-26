@@ -26,7 +26,7 @@ let LT_ORDERS=JSON.parse(localStorage.getItem("lt_orders")||"[]");
 let LT_HISTORY=JSON.parse(localStorage.getItem("lt_hist")||"[]");
 let ltOrderType="market",currentTradeTab="paper";
 let prices={},prevPrices={},priceHist={};
-let nepseVal=2387.45,nepseHist=[];
+let nepseVal=2387.45,nepseHist=[],nepseOpen=2387.45;
 let activeSector="all",currentTab="home";
 let modalTicker=null,mktTimer=null;
 let PG=null,gameTimer=null,pgChartActive="NABIL",gameEnded=false;
@@ -59,31 +59,53 @@ function playSound(type){
   }catch(_){}
 }
 
-const CORS_PROXY="https://api.allorigins.win/get?url=";
-const NEPSE_SEC="https://nepalstock.com/api/nots/security";
-const NEPSE_IDX="https://nepalstock.com/api/nots/nepse-data/today";
+// NEPSE has no free public API. We use a community-run per-symbol price mirror
+// (ShareBazaar, backed by nepsetty.kokomo.workers.dev) relayed through a public
+// CORS proxy, since the mirror itself doesn't send CORS headers. There's no
+// bulk or index endpoint, so all 20 stocks are fetched in parallel and the
+// NEPSE index is approximated from their real weighted price movement.
+const CORS_PROXY="https://corsproxy.io/?url=";
+const NEPSE_STOCK_API="https://nepsetty.kokomo.workers.dev/api?symbol=";
 
 async function fetchLiveNEPSE(){
   try{
-    const res=await fetch(CORS_PROXY+encodeURIComponent(NEPSE_SEC),{signal:AbortSignal.timeout(10000)});
-    if(!res.ok)throw new Error("HTTP "+res.status);
-    const wrap=await res.json();
-    const list=JSON.parse(wrap.contents);
-    if(!Array.isArray(list)||!list.length)throw new Error("Empty");
-    let hit=0;
-    list.forEach(s=>{
-      const sym=(s.symbol||s.stockSymbol||"").trim();
-      const ltp=parseFloat(s.lastTradedPrice||s.ltp||s.closingPrice||0);
-      if(STOCKS[sym]&&ltp>0){prevPrices[sym]=prices[sym];prices[sym]=ltp;priceHist[sym].push(ltp);if(priceHist[sym].length>60)priceHist[sym].shift();hit++;}
+    const symbols=Object.keys(STOCKS);
+    const results=await Promise.all(symbols.map(async sym=>{
+      try{
+        const res=await fetch(CORS_PROXY+encodeURIComponent(NEPSE_STOCK_API+sym),{signal:AbortSignal.timeout(10000)});
+        if(!res.ok)return null;
+        const d=await res.json();
+        const ltp=parseFloat(d.ltp);
+        return(ltp>0)?{sym,ltp}:null;
+      }catch(_){return null;}
+    }));
+    const firstLive=!isLiveData;
+    let hit=0,chgSum=0,chgCount=0;
+    results.forEach(r=>{
+      if(!r)return;
+      const prevPrice=prices[r.sym];
+      if(prevPrice>0){chgSum+=(r.ltp-prevPrice)/prevPrice;chgCount++;}
+      prevPrices[r.sym]=prices[r.sym];
+      prices[r.sym]=r.ltp;
+      // On the sim->live transition, drop the simulated seed history instead
+      // of appending the real price after it — otherwise charts show a fake
+      // jump where the old fake history meets the real price level.
+      if(firstLive)priceHist[r.sym]=[r.ltp,r.ltp];
+      else{priceHist[r.sym].push(r.ltp);if(priceHist[r.sym].length>60)priceHist[r.sym].shift();}
+      hit++;
     });
-    if(hit===0)throw new Error("No match");
-    try{
-      const ir=await fetch(CORS_PROXY+encodeURIComponent(NEPSE_IDX),{signal:AbortSignal.timeout(6000)});
-      const iw=await ir.json();const id=JSON.parse(iw.contents);
-      const arr=Array.isArray(id)?id:(id.nepseIndex||id.indices||[id]);
-      const ni=arr.find(x=>(x.index||x.indexName||"").toLowerCase().includes("nepse"));
-      if(ni&&ni.currentValue){nepseVal=parseFloat(ni.currentValue);nepseHist.push(nepseVal);if(nepseHist.length>60)nepseHist.shift();}
-    }catch(_){}
+    if(hit===0)throw new Error("No live prices returned");
+    if(chgCount>0){
+      const avgChg=chgSum/chgCount;
+      nepseVal=Math.max(1000,Math.round(nepseVal*(1+avgChg*0.8)*100)/100);
+    }
+    if(firstLive){
+      nepseOpen=nepseVal;
+      nepseHist=[nepseVal,nepseVal];
+    }else{
+      nepseHist.push(nepseVal);
+      if(nepseHist.length>60)nepseHist.shift();
+    }
     isLiveData=true;updateDataBadge(true);
   }catch(e){console.warn("Live NEPSE:",e.message);isLiveData=false;updateDataBadge(false);}
 }
@@ -127,6 +149,7 @@ function updateMarketStatus(){
 function initPrices(){
   for(const t in STOCKS){prices[t]=STOCKS[t].price+(Math.random()-.5)*STOCKS[t].price*.02;prevPrices[t]=prices[t];priceHist[t]=[prices[t]];}
   nepseVal=2387.45+(Math.random()-.5)*50;
+  nepseOpen=nepseVal;
   for(let i=0;i<20;i++)nepseHist.push(nepseVal+(Math.random()-.5)*30);
   nepseHist.push(nepseVal);
 }
@@ -141,8 +164,12 @@ function getLTTotal(){let t=LT_CASH;for(const k in LT_HOLDINGS)t+=(LT_HOLDINGS[k
 
 function startMarket(){
   mktTimer=setInterval(()=>{
-    if(!isLiveData&&isMarketOpen()){
-      for(const t in STOCKS){prevPrices[t]=prices[t];const d=(Math.random()-.48)*STOCKS[t].vol;prices[t]=Math.max(1,Math.round(prices[t]*(1+d)*100)/100);priceHist[t].push(prices[t]);if(priceHist[t].length>60)priceHist[t].shift();}
+    if(isMarketOpen()){
+      // Live mode: the real fetch (every 60s) is the source of truth and always
+      // overwrites these values, so this is just a tiny cosmetic drift between
+      // polls to keep the chart feeling alive — not invented price action.
+      const driftScale=isLiveData?0.05:1;
+      for(const t in STOCKS){prevPrices[t]=prices[t];const d=(Math.random()-.48)*STOCKS[t].vol*driftScale;prices[t]=Math.max(1,Math.round(prices[t]*(1+d)*100)/100);priceHist[t].push(prices[t]);if(priceHist[t].length>60)priceHist[t].shift();}
       const avgD=Object.keys(STOCKS).reduce((s,t)=>s+(prices[t]-prevPrices[t])/prevPrices[t],0)/Object.keys(STOCKS).length;
       nepseVal=Math.max(1000,Math.round(nepseVal*(1+avgD*.8)*100)/100);nepseHist.push(nepseVal);if(nepseHist.length>60)nepseHist.shift();
     }
@@ -200,7 +227,7 @@ function launchApp(){
   liveDataTimer=setInterval(fetchLiveNEPSE,60000);
 }
 function checkDailyStreak(){const today=new Date().toDateString(),last=localStorage.getItem("ts_last_login"),yesterday=new Date(Date.now()-86400000).toDateString();if(last===today)return;if(last===yesterday)streak++;else streak=1;localStorage.setItem("ts_last_login",today);if(streak>1)setTimeout(()=>toast(streak+"-day streak!","warning"),800);}
-function updateHeader(){document.getElementById("hName").textContent=playerName||"Trader";document.getElementById("hLevel").textContent="L"+appLevel;const ni=nepseVal.toFixed(2),base=2387.45,chg=((nepseVal-base)/base*100).toFixed(2);document.getElementById("hNepse").textContent=Math.round(nepseVal).toLocaleString();const hc=document.getElementById("hNepseChg");hc.textContent=(chg>=0?"+":"")+chg+"%";hc.className="nepse-chg "+(chg>=0?"up":"down");updateMarketStatus();}
+function updateHeader(){document.getElementById("hName").textContent=playerName||"Trader";document.getElementById("hLevel").textContent="L"+appLevel;const ni=nepseVal.toFixed(2),base=nepseOpen,chg=((nepseVal-base)/base*100).toFixed(2);document.getElementById("hNepse").textContent=Math.round(nepseVal).toLocaleString();const hc=document.getElementById("hNepseChg");hc.textContent=(chg>=0?"+":"")+chg+"%";hc.className="nepse-chg "+(chg>=0?"up":"down");updateMarketStatus();}
 
 function switchTab(tab){
   currentTab=tab;
@@ -218,7 +245,7 @@ function switchTab(tab){
 function showPfTab(tab,btn){document.querySelectorAll(".pf-panel").forEach(p=>p.classList.add("hidden"));document.querySelectorAll(".pft").forEach(b=>b.classList.remove("active"));const id="pf"+tab.charAt(0).toUpperCase()+tab.slice(1);const el=document.getElementById(id);if(el)el.classList.remove("hidden");if(btn)btn.classList.add("active");if(tab==="history")renderFullHistory();if(tab==="leaderboard")renderLeaderboardList();}
 
 function updateHomeData(){
-  const base=2387.45,chg=((nepseVal-base)/base*100).toFixed(2);
+  const base=nepseOpen,chg=((nepseVal-base)/base*100).toFixed(2);
   document.getElementById("ncVal").textContent=nepseVal.toFixed(2);
   const cc=document.getElementById("ncChg");cc.textContent=(chg>=0?"+":"")+chg+"% ("+Math.abs(nepseVal-base).toFixed(2)+")";cc.className="nc-chg "+(chg>=0?"up":"down");
   document.getElementById("miniLT").textContent="NPR "+fmtNPR(getLTTotal());
